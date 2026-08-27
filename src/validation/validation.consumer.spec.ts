@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ValidationConsumer, ValidationRejectedError } from './validation.consumer';
+import {
+  ValidationConsumer,
+  ValidationRejectedError,
+} from './validation.consumer';
 import { InMemoryDuplicateChecker } from './in-memory-duplicate-checker';
 import { FakeEventPublisher } from '../messaging/fake-event-publisher';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
@@ -9,7 +12,9 @@ describe('ValidationConsumer', () => {
   let publisher: FakeEventPublisher;
   let duplicateChecker: InMemoryDuplicateChecker;
 
-  const createDto = (overrides?: Partial<VideoValidationRequestedDto>): VideoValidationRequestedDto => ({
+  const createDto = (
+    overrides?: Partial<VideoValidationRequestedDto>,
+  ): VideoValidationRequestedDto => ({
     eventId: 'evt-1',
     processingRequestId: 'req-1',
     ownerUserId: 'user-1',
