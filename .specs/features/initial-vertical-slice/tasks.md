@@ -230,10 +230,10 @@ T5 → T6 → T7
 
 **Done when**:
 
-- [ ] E2E test bootstraps the Worker module with fake publisher and duplicate checker
-- [ ] Invoking the consumer with a valid DTO publishes `VideoAccepted`
-- [ ] Invoking with duplicate `eventId` does not publish a second event
-- [ ] Full gate passes: `npm test && npm run test:e2e`
+- [x] E2E test bootstraps the Worker module with fake publisher and duplicate checker
+- [x] Invoking the consumer with a valid DTO publishes `VideoAccepted`
+- [x] Invoking with duplicate `eventId` does not publish a second event
+- [x] Full gate passes: `npm test && npm run test:e2e`
 
 **Tests**: e2e
 **Gate**: full

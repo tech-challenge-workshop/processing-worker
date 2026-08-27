@@ -60,5 +60,5 @@ The Worker must prove that it can consume the Catalog's validation message and r
 
 ## Success Criteria
 
-- [ ] One valid validation message produces one accepted event with the same request ID.
-- [ ] Invalid and duplicate messages produce no duplicate outcome.
+- [x] One valid validation message produces one accepted event with the same request ID.
+- [x] Invalid and duplicate messages produce no duplicate outcome.
