@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 2,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "spec_precision_gap::when a spec requires a new generated identifier e g uuid assert it is a well formed fresh value regex format not merely unequal to the input",
+      "text": "When a spec requires a 'new' generated identifier (e.g. UUID), assert it is a well-formed fresh value (regex/format), not merely unequal to the input.",
+      "signal": "spec_precision_gap",
+      "scope": "src/validation",
+      "status": "candidate",
+      "features": [
+        "initial-vertical-slice"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.consumer.spec.ts:49 (AC1) (src/validation)"
+      ],
+      "created": "2026-08-27T23:34:08Z",
+      "last_seen": "2026-08-27T23:34:08Z"
+    }
+  ]
+}
