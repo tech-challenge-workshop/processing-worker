@@ -204,11 +204,11 @@ T5 → T6 → T7
 
 **Done when**:
 
-- [ ] Valid message produces one `VideoAccepted` call with correct fields
-- [ ] Missing `processingRequestId` produces no publish call
-- [ ] Duplicate `eventId` produces no publish call
-- [ ] Publisher failure propagates so the consumer would not ack
-- [ ] Quick gate passes: `npm test -- validation.consumer`
+- [x] Valid message produces one `VideoAccepted` call with correct fields
+- [x] Missing `processingRequestId` produces no publish call
+- [x] Duplicate `eventId` produces no publish call
+- [x] Publisher failure propagates so the consumer would not ack
+- [x] Quick gate passes: `npm test -- validation.consumer`
 
 **Tests**: unit
 **Gate**: quick
