@@ -153,11 +153,11 @@ T5 → T6 → T7
 
 **Done when**:
 
-- [ ] Consumer method validates `processingRequestId` presence and throws/logs without publishing when absent
-- [ ] Duplicate `eventId` skips publishing and returns cleanly
-- [ ] Valid message publishes `VideoAccepted` with a new `eventId`, same `processingRequestId`, and `occurredAt`
-- [ ] FFprobe, FFmpeg, S3, and ZIP are not referenced in this file
-- [ ] Quick gate passes: `npm test -- validation.consumer`
+- [x] Consumer method validates `processingRequestId` presence and throws/logs without publishing when absent
+- [x] Duplicate `eventId` skips publishing and returns cleanly
+- [x] Valid message publishes `VideoAccepted` with a new `eventId`, same `processingRequestId`, and `occurredAt`
+- [x] FFprobe, FFmpeg, S3, and ZIP are not referenced in this file
+- [x] Quick gate passes: `npm test -- validation.consumer`
 
 **Tests**: unit
 **Gate**: quick
