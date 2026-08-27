@@ -53,7 +53,7 @@ The Worker must prove that it can consume the Catalog's validation message and r
 | --- | --- | --- | --- |
 | WRK-01 | P1: Consume and accept validation request | Tasks | In Progress |
 | WRK-02 | P1: Consume and accept validation request | Tasks | Pending |
-| WRK-03 | P1: Consume and accept validation request | Tasks | Pending |
+| WRK-03 | P1: Consume and accept validation request | Tasks | In Progress |
 | WRK-04 | P1: Consume and accept validation request | Tasks | Pending |
 
 **Coverage:** 4 total, 4 mapped to future tasks, 0 unmapped.

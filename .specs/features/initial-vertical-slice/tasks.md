@@ -103,10 +103,10 @@ T5 → T6 → T7
 
 **Done when**:
 
-- [ ] Interface exposes `isDuplicate(eventId: string): Promise<boolean>` and `mark(eventId: string): Promise<void>`
-- [ ] In-memory implementation returns `true` for repeated IDs and `false` for new IDs
-- [ ] Unit tests for the checker pass: `npm test -- in-memory-duplicate-checker`
-- [ ] Quick gate passes: `npm test`
+- [x] Interface exposes `isDuplicate(eventId: string): Promise<boolean>` and `mark(eventId: string): Promise<void>`
+- [x] In-memory implementation returns `true` for repeated IDs and `false` for new IDs
+- [x] Unit tests for the checker pass: `npm test -- in-memory-duplicate-checker`
+- [x] Quick gate passes: `npm test`
 
 **Tests**: unit
 **Gate**: quick
