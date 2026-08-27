@@ -79,9 +79,9 @@ T5 → T6 → T7
 
 **Done when**:
 
-- [ ] Both DTOs exist with the exact fields from the spec
-- [ ] Types are exported and TypeScript compiles
-- [ ] Build gate passes: `npm run build`
+- [x] Both DTOs exist with the exact fields from the spec
+- [x] Types are exported and TypeScript compiles
+- [x] Build gate passes: `npm run build`
 
 **Tests**: none
 **Gate**: build
