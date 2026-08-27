@@ -128,10 +128,10 @@ T5 → T6 → T7
 
 **Done when**:
 
-- [ ] Interface exposes `publish(event: VideoAcceptedDto): Promise<boolean>`
-- [ ] Fake records calls and returns success/failure based on configuration
-- [ ] Unit tests for the fake pass: `npm test -- fake-event-publisher`
-- [ ] Quick gate passes: `npm test`
+- [x] Interface exposes `publish(event: VideoAcceptedDto): Promise<boolean>`
+- [x] Fake records calls and returns success/failure based on configuration
+- [x] Unit tests for the fake pass: `npm test -- fake-event-publisher`
+- [x] Quick gate passes: `npm test`
 
 **Tests**: unit
 **Gate**: quick
