@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { DuplicateChecker } from './duplicate-checker.interface';
 import type { EventPublisher } from '../messaging/event-publisher.interface';
@@ -15,7 +15,9 @@ export class ValidationRejectedError extends Error {
 @Injectable()
 export class ValidationConsumer {
   constructor(
+    @Inject('DUPLICATE_CHECKER')
     private readonly duplicateChecker: DuplicateChecker,
+    @Inject('EVENT_PUBLISHER')
     private readonly eventPublisher: EventPublisher,
   ) {}
 

@@ -7,9 +7,9 @@ export class FakeEventPublisher implements EventPublisher {
   private readonly events: VideoAcceptedDto[] = [];
   private nextResult = true;
 
-  async publish(event: VideoAcceptedDto): Promise<boolean> {
+  publish(event: VideoAcceptedDto): Promise<boolean> {
     this.events.push(event);
-    return this.nextResult;
+    return Promise.resolve(this.nextResult);
   }
 
   setNextResult(result: boolean): void {

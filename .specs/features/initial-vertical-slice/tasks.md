@@ -179,10 +179,10 @@ T5 → T6 → T7
 
 **Done when**:
 
-- [ ] `ValidationModule` exists and is imported by `AppModule`
-- [ ] `EventPublisher` and `DuplicateChecker` are provided as injectable tokens
-- [ ] `ValidationConsumer` is discoverable by Nest
-- [ ] Build gate passes: `npm run build && npm run lint`
+- [x] `ValidationModule` exists and is imported by `AppModule`
+- [x] `EventPublisher` and `DuplicateChecker` are provided as injectable tokens
+- [x] `ValidationConsumer` is discoverable by Nest
+- [x] Build gate passes: `npm run build && npm run lint`
 
 **Tests**: none
 **Gate**: build
