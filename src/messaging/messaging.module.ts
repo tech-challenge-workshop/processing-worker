@@ -15,8 +15,6 @@ import { RabbitmqHealthService } from './rabbitmq-health.service';
           queue: 'video.accepted',
           noAck: true,
           persistent: true,
-          wildcards: true,
-          exchange: process.env.RABBITMQ_EXCHANGE ?? 'fiapx-events',
           queueOptions: {
             durable: true,
           },
@@ -30,8 +28,6 @@ import { RabbitmqHealthService } from './rabbitmq-health.service';
           queue: 'processing.completed',
           noAck: true,
           persistent: true,
-          wildcards: true,
-          exchange: process.env.RABBITMQ_EXCHANGE ?? 'fiapx-events',
           queueOptions: {
             durable: true,
           },
