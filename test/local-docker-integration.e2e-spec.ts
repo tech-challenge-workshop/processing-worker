@@ -33,7 +33,11 @@ describe('Local Docker Integration (e2e)', () => {
     occurredAt: '2026-08-27T00:00:00Z',
   });
 
-  const createContext = (): { ctx: RmqContext; ack: jest.Mock; nack: jest.Mock } => {
+  const createContext = (): {
+    ctx: RmqContext;
+    ack: jest.Mock;
+    nack: jest.Mock;
+  } => {
     const ack = jest.fn();
     const nack = jest.fn();
     const ctx = {
@@ -66,8 +70,10 @@ describe('Local Docker Integration (e2e)', () => {
       .useValue(fakeClient)
       .compile();
 
-    validationConsumer = moduleFixture.get<ValidationConsumer>(ValidationConsumer);
-    processingConsumer = moduleFixture.get<ProcessingConsumer>(ProcessingConsumer);
+    validationConsumer =
+      moduleFixture.get<ValidationConsumer>(ValidationConsumer);
+    processingConsumer =
+      moduleFixture.get<ProcessingConsumer>(ProcessingConsumer);
   });
 
   it('acknowledges a valid VideoValidationRequested and publishes VideoAccepted', async () => {
@@ -115,7 +121,10 @@ describe('Local Docker Integration (e2e)', () => {
       validationDto,
       validationCtx,
     );
-    await processingConsumer.handleProcessingQueued(processingDto, processingCtx);
+    await processingConsumer.handleProcessingQueued(
+      processingDto,
+      processingCtx,
+    );
 
     expect(publisher.publishedEvents).toHaveLength(2);
     expect(validationAck).toHaveBeenCalledTimes(1);
@@ -128,10 +137,16 @@ describe('Local Docker Integration (e2e)', () => {
     const processingDto = createProcessingDto();
     processingDto.attemptId = '';
 
-    const { ctx: validationCtx, ack: validationAck, nack: validationNack } =
-      createContext();
-    const { ctx: processingCtx, ack: processingAck, nack: processingNack } =
-      createContext();
+    const {
+      ctx: validationCtx,
+      ack: validationAck,
+      nack: validationNack,
+    } = createContext();
+    const {
+      ctx: processingCtx,
+      ack: processingAck,
+      nack: processingNack,
+    } = createContext();
 
     await expect(
       validationConsumer.handleVideoValidationRequested(
@@ -146,8 +161,16 @@ describe('Local Docker Integration (e2e)', () => {
     expect(publisher.publishedEvents).toHaveLength(0);
     expect(validationAck).not.toHaveBeenCalled();
     expect(processingAck).not.toHaveBeenCalled();
-    expect(validationNack).toHaveBeenCalledWith(expect.anything(), false, false);
-    expect(processingNack).toHaveBeenCalledWith(expect.anything(), false, false);
+    expect(validationNack).toHaveBeenCalledWith(
+      expect.anything(),
+      false,
+      false,
+    );
+    expect(processingNack).toHaveBeenCalledWith(
+      expect.anything(),
+      false,
+      false,
+    );
   });
 
   it('nacks failed publications with requeue and does not acknowledge success', async () => {
@@ -155,10 +178,16 @@ describe('Local Docker Integration (e2e)', () => {
     const validationDto = createValidationDto();
     const processingDto = createProcessingDto();
 
-    const { ctx: validationCtx, ack: validationAck, nack: validationNack } =
-      createContext();
-    const { ctx: processingCtx, ack: processingAck, nack: processingNack } =
-      createContext();
+    const {
+      ctx: validationCtx,
+      ack: validationAck,
+      nack: validationNack,
+    } = createContext();
+    const {
+      ctx: processingCtx,
+      ack: processingAck,
+      nack: processingNack,
+    } = createContext();
 
     await expect(
       validationConsumer.handleVideoValidationRequested(

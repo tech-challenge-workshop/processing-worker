@@ -29,11 +29,29 @@ export class ValidationConsumer {
   ): Promise<void> {
     try {
       await this.processVideoValidationRequested(dto);
-      ctx?.getChannelRef().ack(ctx.getMessage());
+      if (ctx) {
+        const channel = ctx.getChannelRef() as {
+          ack: (message: unknown) => void;
+          nack: (
+            message: unknown,
+            allUpTo?: boolean,
+            requeue?: boolean,
+          ) => void;
+        };
+        channel.ack(ctx.getMessage());
+      }
     } catch (err) {
       if (ctx) {
+        const channel = ctx.getChannelRef() as {
+          ack: (message: unknown) => void;
+          nack: (
+            message: unknown,
+            allUpTo?: boolean,
+            requeue?: boolean,
+          ) => void;
+        };
         const requeue = !(err instanceof ValidationRejectedError);
-        ctx.getChannelRef().nack(ctx.getMessage(), false, requeue);
+        channel.nack(ctx.getMessage(), false, requeue);
       }
       throw err;
     }
