@@ -149,10 +149,10 @@ T9 independent
 
 **Done when**:
 
-- [ ] `ProcessingQueuedDto` contains `eventId`, `processingRequestId`, `ownerUserId`, `sourceStorageKey`, `attemptId`, `occurredAt`.
-- [ ] `ProcessingCompletedDto` contains `eventId`, `processingRequestId`, `attemptId`, `zipStorageKey`, `occurredAt`.
-- [ ] Types are exported and TypeScript compiles.
-- [ ] Build gate passes: `npm run build`
+- [x] `ProcessingQueuedDto` contains `eventId`, `processingRequestId`, `ownerUserId`, `sourceStorageKey`, `attemptId`, `occurredAt`.
+- [x] `ProcessingCompletedDto` contains `eventId`, `processingRequestId`, `attemptId`, `zipStorageKey`, `occurredAt`.
+- [x] Types are exported and TypeScript compiles.
+- [x] Build gate passes: `npm run build`
 
 **Tests**: none
 **Gate**: build
