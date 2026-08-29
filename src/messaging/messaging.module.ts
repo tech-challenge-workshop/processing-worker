@@ -13,7 +13,7 @@ import { RabbitmqHealthService } from './rabbitmq-health.service';
         options: {
           urls: [process.env.RABBITMQ_URL ?? 'amqp://localhost:5672'],
           queue: 'video.accepted',
-          noAck: false,
+          noAck: true,
           persistent: true,
           wildcards: true,
           exchange: process.env.RABBITMQ_EXCHANGE ?? 'fiapx-events',
@@ -28,7 +28,7 @@ import { RabbitmqHealthService } from './rabbitmq-health.service';
         options: {
           urls: [process.env.RABBITMQ_URL ?? 'amqp://localhost:5672'],
           queue: 'processing.completed',
-          noAck: false,
+          noAck: true,
           persistent: true,
           wildcards: true,
           exchange: process.env.RABBITMQ_EXCHANGE ?? 'fiapx-events',
