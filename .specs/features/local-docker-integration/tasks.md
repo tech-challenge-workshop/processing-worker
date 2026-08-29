@@ -279,12 +279,12 @@ T9 independent
 
 **Done when**:
 
-- [ ] Valid `VideoValidationRequested` produces one `VideoAccepted` and one `ack`.
-- [ ] Valid `ProcessingQueued` produces one `ProcessingCompleted` with deterministic ZIP key and one `ack`.
-- [ ] Duplicate event IDs produce no second event and still `ack`.
-- [ ] Malformed input (missing required field) results in `nack(false)` and no success event.
-- [ ] Forced publisher failure results in `nack(true)` and no successful acknowledgement.
-- [ ] Full gate passes: `npm test && npm run test:e2e`
+- [x] Valid `VideoValidationRequested` produces one `VideoAccepted` and one `ack`.
+- [x] Valid `ProcessingQueued` produces one `ProcessingCompleted` with deterministic ZIP key and one `ack`.
+- [x] Duplicate event IDs produce no second event and still `ack`.
+- [x] Malformed input (missing required field) results in `nack(false)` and no success event.
+- [x] Forced publisher failure results in `nack(true)` and no successful acknowledgement.
+- [x] Full gate passes: `npm test && npm run test:e2e`
 
 **Tests**: e2e
 **Gate**: full
