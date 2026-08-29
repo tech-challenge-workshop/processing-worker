@@ -5,13 +5,13 @@ import { ValidationConsumer } from './validation.consumer';
 
 @Module({
   imports: [MessagingModule],
+  controllers: [ValidationConsumer],
   providers: [
-    ValidationConsumer,
     {
       provide: 'DUPLICATE_CHECKER',
       useClass: InMemoryDuplicateChecker,
     },
   ],
-  exports: [ValidationConsumer, 'DUPLICATE_CHECKER'],
+  exports: ['DUPLICATE_CHECKER'],
 })
 export class ValidationModule {}

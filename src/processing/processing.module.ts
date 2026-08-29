@@ -5,7 +5,6 @@ import { ProcessingConsumer } from './processing.consumer';
 
 @Module({
   imports: [MessagingModule, ValidationModule],
-  providers: [ProcessingConsumer],
-  exports: [ProcessingConsumer],
+  controllers: [ProcessingConsumer],
 })
 export class ProcessingModule {}
