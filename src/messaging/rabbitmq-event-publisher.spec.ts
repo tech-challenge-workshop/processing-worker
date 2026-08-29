@@ -6,7 +6,8 @@ import { RabbitmqEventPublisher } from './rabbitmq-event-publisher';
 
 describe('RabbitmqEventPublisher', () => {
   let publisher: RabbitmqEventPublisher;
-  let client: { emit: jest.Mock };
+  let videoAcceptedClient: { emit: jest.Mock };
+  let processingCompletedClient: { emit: jest.Mock };
 
   const videoAccepted: VideoAcceptedDto = {
     eventId: 'accepted-1',
@@ -23,29 +24,42 @@ describe('RabbitmqEventPublisher', () => {
   };
 
   beforeEach(() => {
-    client = { emit: jest.fn().mockReturnValue(of(undefined)) };
-    publisher = new RabbitmqEventPublisher(client as unknown as ClientProxy);
+    videoAcceptedClient = { emit: jest.fn().mockReturnValue(of(undefined)) };
+    processingCompletedClient = {
+      emit: jest.fn().mockReturnValue(of(undefined)),
+    };
+    publisher = new RabbitmqEventPublisher(
+      videoAcceptedClient as unknown as ClientProxy,
+      processingCompletedClient as unknown as ClientProxy,
+    );
   });
 
   it('emits VideoAccepted with the event payload', async () => {
     const result = await publisher.publish(videoAccepted);
 
     expect(result).toBe(true);
-    expect(client.emit).toHaveBeenCalledWith('VideoAccepted', videoAccepted);
+    expect(videoAcceptedClient.emit).toHaveBeenCalledWith(
+      'VideoAccepted',
+      videoAccepted,
+    );
+    expect(processingCompletedClient.emit).not.toHaveBeenCalled();
   });
 
   it('emits ProcessingCompleted with the event payload', async () => {
     const result = await publisher.publish(processingCompleted);
 
     expect(result).toBe(true);
-    expect(client.emit).toHaveBeenCalledWith(
+    expect(processingCompletedClient.emit).toHaveBeenCalledWith(
       'ProcessingCompleted',
       processingCompleted,
     );
+    expect(videoAcceptedClient.emit).not.toHaveBeenCalled();
   });
 
   it('returns false when the broker emit fails', async () => {
-    client.emit.mockReturnValue(throwError(() => new Error('broker down')));
+    videoAcceptedClient.emit.mockReturnValue(
+      throwError(() => new Error('broker down')),
+    );
 
     const result = await publisher.publish(videoAccepted);
 

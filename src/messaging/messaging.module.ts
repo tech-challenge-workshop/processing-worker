@@ -8,11 +8,26 @@ import { RabbitmqHealthService } from './rabbitmq-health.service';
   imports: [
     ClientsModule.register([
       {
-        name: 'RMQ_CLIENT',
+        name: 'RMQ_VIDEO_ACCEPTED_CLIENT',
         transport: Transport.RMQ,
         options: {
           urls: [process.env.RABBITMQ_URL ?? 'amqp://localhost:5672'],
-          queue: process.env.RABBITMQ_PUBLISHER_QUEUE ?? 'worker-publisher',
+          queue: 'video.accepted',
+          noAck: false,
+          persistent: true,
+          wildcards: true,
+          exchange: process.env.RABBITMQ_EXCHANGE ?? 'fiapx-events',
+          queueOptions: {
+            durable: true,
+          },
+        },
+      },
+      {
+        name: 'RMQ_PROCESSING_COMPLETED_CLIENT',
+        transport: Transport.RMQ,
+        options: {
+          urls: [process.env.RABBITMQ_URL ?? 'amqp://localhost:5672'],
+          queue: 'processing.completed',
           noAck: false,
           persistent: true,
           wildcards: true,
