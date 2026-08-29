@@ -306,10 +306,10 @@ T9 independent
 
 **Done when**:
 
-- [ ] `.gitignore` excludes `._*` files.
-- [ ] `package.json` Jest `testPathIgnorePatterns` excludes `\._` or equivalent.
-- [ ] `npm run lint` and `npm run format --check` (if available) pass without touching `._*` files.
-- [ ] Build gate passes: `npm run build && npm run lint`
+- [x] `.gitignore` excludes `._*` files.
+- [x] `package.json` Jest `testPathIgnorePatterns` excludes `\._` or equivalent.
+- [x] `npm run lint` and `npm run format --check` (if available) pass without touching `._*` files.
+- [x] Build gate passes: `npm run build && npm run lint`
 
 **Tests**: none
 **Gate**: build
