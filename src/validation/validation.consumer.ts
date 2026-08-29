@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { randomUUID } from 'crypto';
 import type { DuplicateChecker } from './duplicate-checker.interface';
 import type { EventPublisher } from '../messaging/event-publisher.interface';
@@ -21,7 +22,24 @@ export class ValidationConsumer {
     private readonly eventPublisher: EventPublisher,
   ) {}
 
+  @EventPattern('VideoValidationRequested')
   async handleVideoValidationRequested(
+    @Payload() dto: VideoValidationRequestedDto,
+    @Ctx() ctx?: RmqContext,
+  ): Promise<void> {
+    try {
+      await this.processVideoValidationRequested(dto);
+      ctx?.getChannelRef().ack(ctx.getMessage());
+    } catch (err) {
+      if (ctx) {
+        const requeue = !(err instanceof ValidationRejectedError);
+        ctx.getChannelRef().nack(ctx.getMessage(), false, requeue);
+      }
+      throw err;
+    }
+  }
+
+  private async processVideoValidationRequested(
     dto: VideoValidationRequestedDto,
   ): Promise<void> {
     if (!dto.processingRequestId) {

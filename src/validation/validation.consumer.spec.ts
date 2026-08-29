@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { RmqContext } from '@nestjs/microservices';
 import {
   ValidationConsumer,
   ValidationRejectedError,
@@ -22,6 +23,17 @@ describe('ValidationConsumer', () => {
     occurredAt: '2026-08-27T00:00:00Z',
     ...overrides,
   });
+
+  const createContext = (): { ctx: RmqContext; ack: jest.Mock; nack: jest.Mock } => {
+    const ack = jest.fn();
+    const nack = jest.fn();
+    const ctx = {
+      getMessage: () => ({}) as unknown as Record<string, unknown>,
+      getChannelRef: () => ({ ack, nack }),
+      getPattern: () => 'VideoValidationRequested',
+    } as unknown as RmqContext;
+    return { ctx, ack, nack };
+  };
 
   beforeEach(async () => {
     publisher = new FakeEventPublisher();
@@ -72,6 +84,61 @@ describe('ValidationConsumer', () => {
 
     await expect(consumer.handleVideoValidationRequested(dto)).rejects.toThrow(
       'Failed to publish VideoAccepted',
+    );
+  });
+
+  it('acknowledges a valid message after publishing VideoAccepted', async () => {
+    const dto = createDto();
+    const { ctx, ack, nack } = createContext();
+
+    await consumer.handleVideoValidationRequested(dto, ctx);
+
+    expect(ack).toHaveBeenCalledTimes(1);
+    expect(nack).not.toHaveBeenCalled();
+  });
+
+  it('acknowledges a duplicate message without publishing again', async () => {
+    const dto = createDto();
+    await consumer.handleVideoValidationRequested(dto);
+    const { ctx, ack, nack } = createContext();
+
+    await consumer.handleVideoValidationRequested(dto, ctx);
+
+    expect(publisher.publishedEvents).toHaveLength(1);
+    expect(ack).toHaveBeenCalledTimes(1);
+    expect(nack).not.toHaveBeenCalled();
+  });
+
+  it('nacks a malformed message without requeue', async () => {
+    const dto = createDto({ processingRequestId: '' });
+    const { ctx, ack, nack } = createContext();
+
+    await expect(consumer.handleVideoValidationRequested(dto, ctx)).rejects.toThrow(
+      ValidationRejectedError,
+    );
+
+    expect(ack).not.toHaveBeenCalled();
+    expect(nack).toHaveBeenCalledWith(
+      expect.anything(),
+      false,
+      false,
+    );
+  });
+
+  it('nacks a failed publication with requeue', async () => {
+    const dto = createDto();
+    publisher.setNextResult(false);
+    const { ctx, ack, nack } = createContext();
+
+    await expect(consumer.handleVideoValidationRequested(dto, ctx)).rejects.toThrow(
+      'Failed to publish VideoAccepted',
+    );
+
+    expect(ack).not.toHaveBeenCalled();
+    expect(nack).toHaveBeenCalledWith(
+      expect.anything(),
+      false,
+      true,
     );
   });
 });

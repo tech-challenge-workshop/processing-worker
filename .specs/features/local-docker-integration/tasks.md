@@ -200,12 +200,12 @@ T9 independent
 
 **Done when**:
 
-- [ ] Valid message publishes `VideoAccepted` with a UUID v4 `eventId` different from the source `eventId`, same `processingRequestId`, and same `occurredAt`, then `ack`s.
-- [ ] Missing `processingRequestId` results in `ValidationRejectedError` and `nack(false)`.
-- [ ] Duplicate source `eventId` `ack`s without publishing.
-- [ ] Publisher failure throws and results in `nack(true)` (no successful ack).
-- [ ] Unit tests pass: `npm test -- validation.consumer`
-- [ ] Quick gate passes: `npm test`
+- [x] Valid message publishes `VideoAccepted` with a UUID v4 `eventId` different from the source `eventId`, same `processingRequestId`, and same `occurredAt`, then `ack`s.
+- [x] Missing `processingRequestId` results in `ValidationRejectedError` and `nack(false)`.
+- [x] Duplicate source `eventId` `ack`s without publishing.
+- [x] Publisher failure throws and results in `nack(true)` (no successful ack).
+- [x] Unit tests pass: `npm test -- validation.consumer`
+- [x] Quick gate passes: `npm test`
 
 **Tests**: unit
 **Gate**: quick
