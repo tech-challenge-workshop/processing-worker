@@ -124,10 +124,10 @@ T9 independent
 
 **Done when**:
 
-- [ ] `MessagingModule` registers a RabbitMQ client using environment variables `RABBITMQ_URL`, `RABBITMQ_EXCHANGE`, `RABBITMQ_VIDEO_VALIDATION_QUEUE`, and `RABBITMQ_PROCESSING_QUEUE`.
-- [ ] Transport configuration uses `noAck: false` so consumers must acknowledge manually.
-- [ ] `GET /health` returns `200 { status: 'ok', rabbitmq: true }` when connected and `503 { status: 'error', rabbitmq: false }` when not.
-- [ ] Build gate passes: `npm run build && npm run lint`
+- [x] `MessagingModule` registers a RabbitMQ client using environment variables `RABBITMQ_URL`, `RABBITMQ_EXCHANGE`, `RABBITMQ_VIDEO_VALIDATION_QUEUE`, and `RABBITMQ_PROCESSING_QUEUE`.
+- [x] Transport configuration uses `noAck: false` so consumers must acknowledge manually.
+- [x] `GET /health` returns `200 { status: 'ok', rabbitmq: true }` when connected and `503 { status: 'error', rabbitmq: false }` when not.
+- [x] Build gate passes: `npm run build && npm run lint`
 
 **Tests**: none
 **Gate**: build
