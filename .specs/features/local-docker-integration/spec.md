@@ -60,7 +60,7 @@ Worker currently exercises validation through fakes only. It must consume real l
 | WRK-02 | P1 | Design | Implementing |
 | WRK-03 | P1 | Design | Implementing |
 | WRK-04 | P1 | Design | Implementing |
-| WRK-05 | P1 | Design | Pending |
+| WRK-05 | P1 | Design | Implementing |
 | WRK-06 | P2 | Design | Pending |
 | WRK-07 | P2 | Design | Pending |
 | WRK-08 | P2 | Design | Pending |

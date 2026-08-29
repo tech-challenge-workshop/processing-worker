@@ -227,12 +227,12 @@ T9 independent
 
 **Done when**:
 
-- [ ] Valid `ProcessingQueued` publishes `ProcessingCompleted` with a UUID v4 `eventId` different from the source `eventId`, same `processingRequestId` and `attemptId`, deterministic `zipStorageKey`, and `occurredAt`.
-- [ ] Missing `processingRequestId` or `attemptId` throws domain error and `nack(false)`.
-- [ ] Duplicate source `eventId` `ack`s without publishing.
-- [ ] Publisher failure throws and results in `nack(true)` (no successful ack).
-- [ ] Unit tests pass: `npm test -- processing.consumer`
-- [ ] Quick gate passes: `npm test`
+- [x] Valid `ProcessingQueued` publishes `ProcessingCompleted` with a UUID v4 `eventId` different from the source `eventId`, same `processingRequestId` and `attemptId`, deterministic `zipStorageKey`, and `occurredAt`.
+- [x] Missing `processingRequestId` or `attemptId` throws domain error and `nack(false)`.
+- [x] Duplicate source `eventId` `ack`s without publishing.
+- [x] Publisher failure throws and results in `nack(true)` (no successful ack).
+- [x] Unit tests pass: `npm test -- processing.consumer`
+- [x] Quick gate passes: `npm test`
 
 **Tests**: unit
 **Gate**: quick
