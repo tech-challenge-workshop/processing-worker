@@ -13,6 +13,9 @@ describe('ValidationConsumer', () => {
   let publisher: FakeEventPublisher;
   let duplicateChecker: InMemoryDuplicateChecker;
 
+  const UUID_V4_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
   const createDto = (
     overrides?: Partial<VideoValidationRequestedDto>,
   ): VideoValidationRequestedDto => ({
@@ -24,7 +27,11 @@ describe('ValidationConsumer', () => {
     ...overrides,
   });
 
-  const createContext = (): { ctx: RmqContext; ack: jest.Mock; nack: jest.Mock } => {
+  const createContext = (): {
+    ctx: RmqContext;
+    ack: jest.Mock;
+    nack: jest.Mock;
+  } => {
     const ack = jest.fn();
     const nack = jest.fn();
     const ctx = {
@@ -59,6 +66,7 @@ describe('ValidationConsumer', () => {
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.occurredAt).toBe(dto.occurredAt);
     expect(event.eventId).not.toBe(dto.eventId);
+    expect(event.eventId).toMatch(UUID_V4_REGEX);
   });
 
   it('does not publish when processingRequestId is missing', async () => {
@@ -113,16 +121,12 @@ describe('ValidationConsumer', () => {
     const dto = createDto({ processingRequestId: '' });
     const { ctx, ack, nack } = createContext();
 
-    await expect(consumer.handleVideoValidationRequested(dto, ctx)).rejects.toThrow(
-      ValidationRejectedError,
-    );
+    await expect(
+      consumer.handleVideoValidationRequested(dto, ctx),
+    ).rejects.toThrow(ValidationRejectedError);
 
     expect(ack).not.toHaveBeenCalled();
-    expect(nack).toHaveBeenCalledWith(
-      expect.anything(),
-      false,
-      false,
-    );
+    expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
   });
 
   it('nacks a failed publication with requeue', async () => {
@@ -130,15 +134,11 @@ describe('ValidationConsumer', () => {
     publisher.setNextResult(false);
     const { ctx, ack, nack } = createContext();
 
-    await expect(consumer.handleVideoValidationRequested(dto, ctx)).rejects.toThrow(
-      'Failed to publish VideoAccepted',
-    );
+    await expect(
+      consumer.handleVideoValidationRequested(dto, ctx),
+    ).rejects.toThrow('Failed to publish VideoAccepted');
 
     expect(ack).not.toHaveBeenCalled();
-    expect(nack).toHaveBeenCalledWith(
-      expect.anything(),
-      false,
-      true,
-    );
+    expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
   });
 });

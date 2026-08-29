@@ -13,6 +13,9 @@ describe('ProcessingConsumer', () => {
   let publisher: FakeEventPublisher;
   let duplicateChecker: InMemoryDuplicateChecker;
 
+  const UUID_V4_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
   const createDto = (
     overrides?: Partial<ProcessingQueuedDto>,
   ): ProcessingQueuedDto => ({
@@ -64,6 +67,8 @@ describe('ProcessingConsumer', () => {
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect('attemptId' in event).toBe(true);
     expect(event.attemptId).toBe(dto.attemptId);
+    expect(event.eventId).not.toBe(dto.eventId);
+    expect(event.eventId).toMatch(UUID_V4_REGEX);
     expect(event.zipStorageKey).toBe(
       `local/${dto.processingRequestId}/${dto.attemptId}/frames.zip`,
     );

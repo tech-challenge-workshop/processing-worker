@@ -254,10 +254,10 @@ T9 independent
 
 **Done when**:
 
-- [ ] Every generated `eventId` assertion checks it is not equal to the source `eventId`.
-- [ ] Every generated `eventId` assertion checks it matches UUID v4 format.
-- [ ] No existing test weakens its assertions.
-- [ ] Full gate passes: `npm test && npm run test:e2e`
+- [x] Every generated `eventId` assertion checks it is not equal to the source `eventId`.
+- [x] Every generated `eventId` assertion checks it matches UUID v4 format.
+- [x] No existing test weakens its assertions.
+- [x] Full gate passes: `npm test && npm run test:e2e`
 
 **Tests**: unit + e2e
 **Gate**: full
