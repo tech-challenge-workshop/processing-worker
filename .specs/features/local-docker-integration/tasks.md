@@ -99,10 +99,10 @@ T9 independent
 
 **Done when**:
 
-- [ ] Dockerfile uses a Node 22 Alpine base image and multi-stage or single-stage build.
-- [ ] Dockerfile exposes port `3002` and sets `NODE_ENV=production`.
-- [ ] Image builds successfully: `docker build . -t processing-worker:local`
-- [ ] Image does not contain AWS credentials, `.env`, or runtime secrets.
+- [x] Dockerfile uses a Node 22 Alpine base image and multi-stage or single-stage build.
+- [x] Dockerfile exposes port `3002` and sets `NODE_ENV=production`.
+- [x] Image builds successfully: `docker build . -t processing-worker:local`
+- [x] Image does not contain AWS credentials, `.env`, or runtime secrets.
 
 **Tests**: image build
 **Gate**: image
