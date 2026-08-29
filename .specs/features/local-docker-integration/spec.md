@@ -56,14 +56,14 @@ Worker currently exercises validation through fakes only. It must consume real l
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| WRK-01 | P1 | Design | Implementing |
-| WRK-02 | P1 | Design | Implementing |
-| WRK-03 | P1 | Design | Implementing |
-| WRK-04 | P1 | Design | Implementing |
-| WRK-05 | P1 | Design | Implementing |
-| WRK-06 | P2 | Design | Implementing |
-| WRK-07 | P2 | Design | Implementing |
-| WRK-08 | P2 | Design | Implementing |
+| WRK-01 | P1 | Design | ✅ Verified |
+| WRK-02 | P1 | Design | ✅ Verified |
+| WRK-03 | P1 | Design | ✅ Verified |
+| WRK-04 | P1 | Design | ✅ Verified |
+| WRK-05 | P1 | Design | ✅ Verified |
+| WRK-06 | P2 | Design | ✅ Verified |
+| WRK-07 | P2 | Design | ✅ Verified |
+| WRK-08 | P2 | Design | ✅ Verified |
 
 ## Success Criteria
 
