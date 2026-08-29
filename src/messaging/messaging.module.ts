@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { EVENT_PUBLISHER } from './event-publisher.interface';
+import { RabbitmqEventPublisher } from './rabbitmq-event-publisher';
 import { RabbitmqHealthService } from './rabbitmq-health.service';
 
 @Module({
@@ -22,7 +24,13 @@ import { RabbitmqHealthService } from './rabbitmq-health.service';
       },
     ]),
   ],
-  providers: [RabbitmqHealthService],
-  exports: [RabbitmqHealthService, ClientsModule],
+  providers: [
+    RabbitmqHealthService,
+    {
+      provide: EVENT_PUBLISHER,
+      useClass: RabbitmqEventPublisher,
+    },
+  ],
+  exports: [RabbitmqHealthService, ClientsModule, EVENT_PUBLISHER],
 })
 export class MessagingModule {}

@@ -1,20 +1,17 @@
 import { Module } from '@nestjs/common';
+import { MessagingModule } from '../messaging/messaging.module';
 import { InMemoryDuplicateChecker } from './in-memory-duplicate-checker';
-import { FakeEventPublisher } from '../messaging/fake-event-publisher';
 import { ValidationConsumer } from './validation.consumer';
 
 @Module({
+  imports: [MessagingModule],
   providers: [
     ValidationConsumer,
     {
       provide: 'DUPLICATE_CHECKER',
       useClass: InMemoryDuplicateChecker,
     },
-    {
-      provide: 'EVENT_PUBLISHER',
-      useClass: FakeEventPublisher,
-    },
   ],
-  exports: [ValidationConsumer],
+  exports: [ValidationConsumer, 'DUPLICATE_CHECKER'],
 })
 export class ValidationModule {}

@@ -56,8 +56,8 @@ Worker currently exercises validation through fakes only. It must consume real l
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| WRK-01 | P1 | Design | Pending |
-| WRK-02 | P1 | Design | Pending |
+| WRK-01 | P1 | Design | Implementing |
+| WRK-02 | P1 | Design | Implementing |
 | WRK-03 | P1 | Design | Implementing |
 | WRK-04 | P1 | Design | Pending |
 | WRK-05 | P1 | Design | Pending |

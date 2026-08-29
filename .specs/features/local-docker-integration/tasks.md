@@ -174,11 +174,11 @@ T9 independent
 
 **Done when**:
 
-- [ ] `EventPublisher` interface accepts `VideoAcceptedDto | ProcessingCompletedDto`.
-- [ ] `RabbitmqEventPublisher` implements the interface and sends JSON to RabbitMQ using the client from `MessagingModule`.
-- [ ] `publish` resolves to `true` when the broker accepts the message and `false`/throws on failure.
-- [ ] Unit tests for `RabbitmqEventPublisher` pass using a fake RabbitMQ client: `npm test -- rabbitmq-event-publisher`.
-- [ ] Quick gate passes: `npm test`
+- [x] `EventPublisher` interface accepts `VideoAcceptedDto | ProcessingCompletedDto`.
+- [x] `RabbitmqEventPublisher` implements the interface and sends JSON to RabbitMQ using the client from `MessagingModule`.
+- [x] `publish` resolves to `true` when the broker accepts the message and `false`/throws on failure.
+- [x] Unit tests for `RabbitmqEventPublisher` pass using a fake RabbitMQ client: `npm test -- rabbitmq-event-publisher`.
+- [x] Quick gate passes: `npm test`
 
 **Tests**: unit
 **Gate**: quick
