@@ -47,6 +47,7 @@ async function bootstrap() {
     )
     .subscribe((connected) => health.setConnected(connected));
 
+  await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();
