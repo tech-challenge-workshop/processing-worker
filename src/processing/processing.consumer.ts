@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Controller, Inject, Injectable } from '@nestjs/common';
 import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { randomUUID } from 'crypto';
 import type { EventPublisher } from '../messaging/event-publisher.interface';
@@ -14,6 +14,7 @@ export class ProcessingRejectedError extends Error {
 }
 
 @Injectable()
+@Controller()
 export class ProcessingConsumer {
   constructor(
     @Inject('DUPLICATE_CHECKER')
