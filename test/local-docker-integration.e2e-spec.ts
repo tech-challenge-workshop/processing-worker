@@ -96,8 +96,11 @@ describe('Local Docker Integration (e2e)', () => {
 
     await processingConsumer.handleProcessingQueued(dto, ctx);
 
-    expect(publisher.publishedEvents).toHaveLength(1);
-    const event = publisher.publishedEvents[0];
+    expect(publisher.publishedTypes).toEqual([
+      'ProcessingStarted',
+      'ProcessingCompleted',
+    ]);
+    const event = publisher.publishedEvents[1];
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.attemptId).toBe(dto.attemptId);
     expect(event.zipStorageKey).toBe(
@@ -126,7 +129,11 @@ describe('Local Docker Integration (e2e)', () => {
       processingCtx,
     );
 
-    expect(publisher.publishedEvents).toHaveLength(2);
+    expect(publisher.publishedTypes).toEqual([
+      'VideoAccepted',
+      'ProcessingStarted',
+      'ProcessingCompleted',
+    ]);
     expect(validationAck).toHaveBeenCalledTimes(1);
     expect(processingAck).toHaveBeenCalledTimes(1);
   });

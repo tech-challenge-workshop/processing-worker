@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RmqContext } from '@nestjs/microservices';
 import { FakeEventPublisher } from '../messaging/fake-event-publisher';
+import { ProcessingCompletedDto } from '../messaging/dto/processing-completed.dto';
+import { DeterministicFramePackager } from './deterministic-frame-packager';
 import { ProcessingQueuedDto } from '../messaging/dto/processing-queued.dto';
 import { InMemoryDuplicateChecker } from '../validation/in-memory-duplicate-checker';
 import {
@@ -52,6 +54,10 @@ describe('ProcessingConsumer', () => {
         ProcessingConsumer,
         { provide: 'DUPLICATE_CHECKER', useValue: duplicateChecker },
         { provide: 'EVENT_PUBLISHER', useValue: publisher },
+        {
+          provide: 'FRAME_PACKAGER',
+          useValue: new DeterministicFramePackager(),
+        },
       ],
     }).compile();
 
@@ -62,8 +68,11 @@ describe('ProcessingConsumer', () => {
     const dto = createDto();
     await consumer.handleProcessingQueued(dto);
 
-    expect(publisher.publishedEvents).toHaveLength(1);
-    const event = publisher.publishedEvents[0];
+    expect(publisher.publishedTypes).toEqual([
+      'ProcessingStarted',
+      'ProcessingCompleted',
+    ]);
+    const event = publisher.publishedEvents[1] as ProcessingCompletedDto;
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect('attemptId' in event).toBe(true);
     expect(event.attemptId).toBe(dto.attemptId);
@@ -97,16 +106,23 @@ describe('ProcessingConsumer', () => {
     await consumer.handleProcessingQueued(dto);
     await consumer.handleProcessingQueued(dto);
 
-    expect(publisher.publishedEvents).toHaveLength(1);
+    expect(publisher.publishedTypes).toEqual([
+      'ProcessingStarted',
+      'ProcessingCompleted',
+    ]);
   });
 
-  it('propagates publisher failure so the message would not be acknowledged', async () => {
+  it('propagates a ProcessingStarted publication failure and does not begin the work', async () => {
     const dto = createDto();
     publisher.setNextResult(false);
 
     await expect(consumer.handleProcessingQueued(dto)).rejects.toThrow(
-      'Failed to publish ProcessingCompleted',
+      'Failed to publish ProcessingStarted',
     );
+
+    // No outcome may follow a start the Catalog never observed.
+    expect(publisher.publishedTypes).not.toContain('ProcessingCompleted');
+    expect(publisher.publishedTypes).not.toContain('ProcessingFailed');
   });
 
   it('acknowledges a valid message after publishing ProcessingCompleted', async () => {
@@ -126,7 +142,10 @@ describe('ProcessingConsumer', () => {
 
     await consumer.handleProcessingQueued(dto, ctx);
 
-    expect(publisher.publishedEvents).toHaveLength(1);
+    expect(publisher.publishedTypes).toEqual([
+      'ProcessingStarted',
+      'ProcessingCompleted',
+    ]);
     expect(ack).toHaveBeenCalledTimes(1);
     expect(nack).not.toHaveBeenCalled();
   });
@@ -149,10 +168,91 @@ describe('ProcessingConsumer', () => {
     const { ctx, ack, nack } = createContext();
 
     await expect(consumer.handleProcessingQueued(dto, ctx)).rejects.toThrow(
-      'Failed to publish ProcessingCompleted',
+      'Failed to publish ProcessingStarted',
     );
 
     expect(ack).not.toHaveBeenCalled();
     expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
+  });
+
+  describe('when packaging the frames fails', () => {
+    const failingConsumer = async (): Promise<ProcessingConsumer> => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ProcessingConsumer,
+          { provide: 'DUPLICATE_CHECKER', useValue: duplicateChecker },
+          { provide: 'EVENT_PUBLISHER', useValue: publisher },
+          {
+            provide: 'FRAME_PACKAGER',
+            useValue: {
+              packageFrames: () => Promise.reject(new Error('ffmpeg blew up')),
+            },
+          },
+        ],
+      }).compile();
+      return module.get<ProcessingConsumer>(ProcessingConsumer);
+    };
+
+    it('publishes ProcessingStarted then ProcessingFailed, in that order', async () => {
+      const failing = await failingConsumer();
+
+      await failing.handleProcessingQueued(createDto());
+
+      expect(publisher.publishedTypes).toEqual([
+        'ProcessingStarted',
+        'ProcessingFailed',
+      ]);
+    });
+
+    it('reports PROCESSAMENTO_FALHOU with the attempt it concerns', async () => {
+      const failing = await failingConsumer();
+
+      await failing.handleProcessingQueued(createDto());
+
+      expect(publisher.published[1].event).toMatchObject({
+        processingRequestId: 'req-1',
+        attemptId: 'attempt-1',
+        failureCode: 'PROCESSAMENTO_FALHOU',
+      });
+    });
+
+    it('never publishes ProcessingCompleted for a failed job', async () => {
+      const failing = await failingConsumer();
+
+      await failing.handleProcessingQueued(createDto());
+
+      expect(publisher.publishedTypes).not.toContain('ProcessingCompleted');
+    });
+
+    it('acknowledges the job, because the failure is terminal and must not be retried', async () => {
+      const failing = await failingConsumer();
+      const { ctx, ack, nack } = createContext();
+
+      await failing.handleProcessingQueued(createDto(), ctx);
+
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(nack).not.toHaveBeenCalled();
+    });
+
+    it('publishes no second outcome when the failed job is redelivered', async () => {
+      const failing = await failingConsumer();
+
+      await failing.handleProcessingQueued(createDto());
+      await failing.handleProcessingQueued(createDto());
+
+      expect(publisher.publishedTypes).toEqual([
+        'ProcessingStarted',
+        'ProcessingFailed',
+      ]);
+    });
+  });
+
+  it('publishes exactly one outcome per job, never both', async () => {
+    await consumer.handleProcessingQueued(createDto());
+
+    const outcomes = publisher.publishedTypes.filter(
+      (type) => type === 'ProcessingCompleted' || type === 'ProcessingFailed',
+    );
+    expect(outcomes).toHaveLength(1);
   });
 });

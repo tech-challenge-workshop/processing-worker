@@ -41,8 +41,11 @@ describe('Processing flow (e2e)', () => {
   it('publishes ProcessingCompleted when a valid processing message is consumed', async () => {
     await consumer.handleProcessingQueued(dto);
 
-    expect(publisher.publishedEvents).toHaveLength(1);
-    const event = publisher.publishedEvents[0];
+    expect(publisher.publishedTypes).toEqual([
+      'ProcessingStarted',
+      'ProcessingCompleted',
+    ]);
+    const event = publisher.publishedEvents[1];
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.attemptId).toBe(dto.attemptId);
     expect(event.eventId).not.toBe(dto.eventId);
@@ -56,6 +59,9 @@ describe('Processing flow (e2e)', () => {
     await consumer.handleProcessingQueued(dto);
     await consumer.handleProcessingQueued(dto);
 
-    expect(publisher.publishedEvents).toHaveLength(1);
+    expect(publisher.publishedTypes).toEqual([
+      'ProcessingStarted',
+      'ProcessingCompleted',
+    ]);
   });
 });
