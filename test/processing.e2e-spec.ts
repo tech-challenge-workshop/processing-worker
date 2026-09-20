@@ -4,6 +4,7 @@ import { ProcessingConsumer } from './../src/processing/processing.consumer';
 import { FakeEventPublisher } from './../src/messaging/fake-event-publisher';
 import { InMemoryDuplicateChecker } from './../src/validation/in-memory-duplicate-checker';
 import { ProcessingQueuedDto } from './../src/messaging/dto/processing-queued.dto';
+import { EVENT_ROUTES } from './../src/messaging/event-routes';
 
 describe('Processing flow (e2e)', () => {
   let consumer: ProcessingConsumer;
@@ -63,5 +64,71 @@ describe('Processing flow (e2e)', () => {
       'ProcessingStarted',
       'ProcessingCompleted',
     ]);
+  });
+
+  it('routes every published event to its own queue and pattern', async () => {
+    await consumer.handleProcessingQueued(dto);
+
+    // The defect this slice removes routed by payload shape. ProcessingStarted
+    // carries no zipStorageKey, so it would have gone to the VideoAccepted
+    // queue and reported success.
+    for (const { type } of publisher.published) {
+      expect(EVENT_ROUTES[type].pattern).toBe(type);
+    }
+    const queues = publisher.published.map((r) => EVENT_ROUTES[r.type].client);
+    expect(new Set(queues).size).toBe(publisher.published.length);
+  });
+
+  describe('when the job fails', () => {
+    let failing: ProcessingConsumer;
+
+    beforeEach(async () => {
+      const moduleFixture: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+      })
+        .overrideProvider('EVENT_PUBLISHER')
+        .useValue(publisher)
+        .overrideProvider('DUPLICATE_CHECKER')
+        .useValue(duplicateChecker)
+        .overrideProvider('FRAME_PACKAGER')
+        .useValue({
+          packageFrames: () => Promise.reject(new Error('packaging failed')),
+        })
+        .compile();
+
+      failing = moduleFixture.get<ProcessingConsumer>(ProcessingConsumer);
+    });
+
+    it('publishes ProcessingStarted then ProcessingFailed, in that order', async () => {
+      await failing.handleProcessingQueued(dto);
+
+      expect(publisher.publishedTypes).toEqual([
+        'ProcessingStarted',
+        'ProcessingFailed',
+      ]);
+    });
+
+    it('reports a safe failure code and the attempt it concerns', async () => {
+      await failing.handleProcessingQueued(dto);
+
+      const failed = publisher.published[1].event as {
+        failureCode: string;
+        attemptId: string;
+        eventId: string;
+      };
+      expect(failed.failureCode).toBe('PROCESSAMENTO_FALHOU');
+      expect(failed.attemptId).toBe(dto.attemptId);
+      expect(failed.eventId).toMatch(UUID_V4_REGEX);
+    });
+
+    it('publishes nothing further when the failed job is redelivered', async () => {
+      await failing.handleProcessingQueued(dto);
+      await failing.handleProcessingQueued(dto);
+
+      expect(publisher.publishedTypes).toEqual([
+        'ProcessingStarted',
+        'ProcessingFailed',
+      ]);
+    });
   });
 });
