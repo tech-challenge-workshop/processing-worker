@@ -7,6 +7,19 @@ import {
 import { InMemoryDuplicateChecker } from './in-memory-duplicate-checker';
 import { FakeEventPublisher } from '../messaging/fake-event-publisher';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
+import { AcceptAllVideoValidator } from './accept-all-video-validator';
+import type {
+  FailureCode,
+  ValidationOutcome,
+  VideoValidator,
+} from './video-validator.interface';
+
+class StubValidator implements VideoValidator {
+  constructor(private readonly outcome: ValidationOutcome) {}
+  validate(): Promise<ValidationOutcome> {
+    return Promise.resolve(this.outcome);
+  }
+}
 
 describe('ValidationConsumer', () => {
   let consumer: ValidationConsumer;
@@ -51,6 +64,7 @@ describe('ValidationConsumer', () => {
         ValidationConsumer,
         { provide: 'DUPLICATE_CHECKER', useValue: duplicateChecker },
         { provide: 'EVENT_PUBLISHER', useValue: publisher },
+        { provide: 'VIDEO_VALIDATOR', useValue: new AcceptAllVideoValidator() },
       ],
     }).compile();
 
@@ -140,5 +154,87 @@ describe('ValidationConsumer', () => {
 
     expect(ack).not.toHaveBeenCalled();
     expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
+  });
+
+  describe('when the validator rejects the video', () => {
+    const rejectingConsumer = async (
+      failureCode: FailureCode,
+    ): Promise<ValidationConsumer> => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ValidationConsumer,
+          { provide: 'DUPLICATE_CHECKER', useValue: duplicateChecker },
+          { provide: 'EVENT_PUBLISHER', useValue: publisher },
+          {
+            provide: 'VIDEO_VALIDATOR',
+            useValue: new StubValidator({ accepted: false, failureCode }),
+          },
+        ],
+      }).compile();
+      return module.get<ValidationConsumer>(ValidationConsumer);
+    };
+
+    it.each<FailureCode>(['FORMATO_INVALIDO', 'DURACAO_EXCEDIDA'])(
+      'publishes VideoRejected carrying %s and never VideoAccepted',
+      async (failureCode) => {
+        const rejecting = await rejectingConsumer(failureCode);
+        const { ctx, ack } = createContext();
+
+        await rejecting.handleVideoValidationRequested(createDto(), ctx);
+
+        expect(publisher.published).toHaveLength(1);
+        const record = publisher.published[0];
+        expect(record.type).toBe('VideoRejected');
+        expect(record.event).toMatchObject({
+          processingRequestId: 'req-1',
+          failureCode,
+          occurredAt: '2026-08-27T00:00:00Z',
+        });
+        expect(publisher.publishedTypes).not.toContain('VideoAccepted');
+        expect(ack).toHaveBeenCalled();
+      },
+    );
+
+    it('generates a fresh well-formed eventId for the rejection', async () => {
+      const rejecting = await rejectingConsumer('FORMATO_INVALIDO');
+      const { ctx } = createContext();
+
+      await rejecting.handleVideoValidationRequested(createDto(), ctx);
+
+      const event = publisher.published[0].event as { eventId: string };
+      expect(event.eventId).toMatch(UUID_V4_REGEX);
+      expect(event.eventId).not.toBe('evt-1');
+    });
+
+    it('does not acknowledge when the rejection fails to publish', async () => {
+      const rejecting = await rejectingConsumer('DURACAO_EXCEDIDA');
+      publisher.setNextResult(false);
+      const { ctx, ack, nack } = createContext();
+
+      await expect(
+        rejecting.handleVideoValidationRequested(createDto(), ctx),
+      ).rejects.toThrow('Failed to publish VideoRejected');
+
+      expect(ack).not.toHaveBeenCalled();
+      expect(nack).toHaveBeenCalledWith({}, false, true);
+    });
+
+    it('publishes no second outcome when the job is redelivered', async () => {
+      const rejecting = await rejectingConsumer('FORMATO_INVALIDO');
+      const { ctx } = createContext();
+
+      await rejecting.handleVideoValidationRequested(createDto(), ctx);
+      await rejecting.handleVideoValidationRequested(createDto(), ctx);
+
+      expect(publisher.published).toHaveLength(1);
+    });
+  });
+
+  it('publishes VideoAccepted, and nothing else, when the validator accepts', async () => {
+    const { ctx } = createContext();
+
+    await consumer.handleVideoValidationRequested(createDto(), ctx);
+
+    expect(publisher.publishedTypes).toEqual(['VideoAccepted']);
   });
 });

@@ -8,13 +8,10 @@ import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-r
  * DTOs. The Catalog rejects any code outside this set.
  */
 export type FailureCode =
-  | 'FORMATO_INVALIDO'
-  | 'DURACAO_EXCEDIDA'
-  | 'PROCESSAMENTO_FALHOU';
+  'FORMATO_INVALIDO' | 'DURACAO_EXCEDIDA' | 'PROCESSAMENTO_FALHOU';
 
 export type ValidationOutcome =
-  | { accepted: true }
-  | { accepted: false; failureCode: FailureCode };
+  { accepted: true } | { accepted: false; failureCode: FailureCode };
 
 /**
  * Decides whether a source video may be processed, without saying how that is

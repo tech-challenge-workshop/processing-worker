@@ -5,6 +5,8 @@ import type { DuplicateChecker } from './duplicate-checker.interface';
 import type { EventPublisher } from '../messaging/event-publisher.interface';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
 import { VideoAcceptedDto } from '../messaging/dto/video-accepted.dto';
+import { VideoRejectedDto } from '../messaging/dto/video-rejected.dto';
+import type { VideoValidator } from './video-validator.interface';
 
 export class ValidationRejectedError extends Error {
   constructor(message: string) {
@@ -21,6 +23,8 @@ export class ValidationConsumer {
     private readonly duplicateChecker: DuplicateChecker,
     @Inject('EVENT_PUBLISHER')
     private readonly eventPublisher: EventPublisher,
+    @Inject('VIDEO_VALIDATOR')
+    private readonly validator: VideoValidator,
   ) {}
 
   @EventPattern('VideoValidationRequested')
@@ -72,18 +76,37 @@ export class ValidationConsumer {
       return;
     }
 
-    const accepted: VideoAcceptedDto = {
-      eventId: randomUUID(),
-      processingRequestId: dto.processingRequestId,
-      occurredAt: dto.occurredAt,
-    };
+    const outcome = await this.validator.validate(dto);
 
-    const published = await this.eventPublisher.publish(
-      'VideoAccepted',
-      accepted,
-    );
-    if (!published) {
-      throw new Error('Failed to publish VideoAccepted');
+    if (outcome.accepted) {
+      const accepted: VideoAcceptedDto = {
+        eventId: randomUUID(),
+        processingRequestId: dto.processingRequestId,
+        occurredAt: dto.occurredAt,
+      };
+
+      const published = await this.eventPublisher.publish(
+        'VideoAccepted',
+        accepted,
+      );
+      if (!published) {
+        throw new Error('Failed to publish VideoAccepted');
+      }
+    } else {
+      const rejected: VideoRejectedDto = {
+        eventId: randomUUID(),
+        processingRequestId: dto.processingRequestId,
+        failureCode: outcome.failureCode,
+        occurredAt: dto.occurredAt,
+      };
+
+      const published = await this.eventPublisher.publish(
+        'VideoRejected',
+        rejected,
+      );
+      if (!published) {
+        throw new Error('Failed to publish VideoRejected');
+      }
     }
 
     await this.duplicateChecker.mark(dto.eventId);

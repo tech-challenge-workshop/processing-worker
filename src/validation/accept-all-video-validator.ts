@@ -1,9 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
-import {
-  ValidationOutcome,
-  VideoValidator,
-} from './video-validator.interface';
+import { ValidationOutcome, VideoValidator } from './video-validator.interface';
 
 /**
  * Accepts every video, without inspecting it.
@@ -14,7 +10,8 @@ import {
  */
 @Injectable()
 export class AcceptAllVideoValidator implements VideoValidator {
-  validate(_job: VideoValidationRequestedDto): Promise<ValidationOutcome> {
+  // The job is deliberately not read: this implementation inspects nothing.
+  validate(): Promise<ValidationOutcome> {
     return Promise.resolve({ accepted: true });
   }
 }
