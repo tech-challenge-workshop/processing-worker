@@ -80,7 +80,10 @@ export class ProcessingConsumer {
       occurredAt: new Date().toISOString(),
     };
 
-    const published = await this.eventPublisher.publish(completed);
+    const published = await this.eventPublisher.publish(
+      'ProcessingCompleted',
+      completed,
+    );
     if (!published) {
       throw new Error('Failed to publish ProcessingCompleted');
     }

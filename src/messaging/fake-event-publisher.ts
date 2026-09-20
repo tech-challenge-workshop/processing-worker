@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { EventPublisher } from './event-publisher.interface';
-import { ProcessingCompletedDto } from './dto/processing-completed.dto';
-import { VideoAcceptedDto } from './dto/video-accepted.dto';
+import { EventPublisher, type WorkerEvent } from './event-publisher.interface';
+import { type WorkerEventType } from './event-routes';
+
+export interface PublishedRecord {
+  type: WorkerEventType;
+  event: WorkerEvent;
+}
 
 @Injectable()
 export class FakeEventPublisher implements EventPublisher {
-  private readonly events: (VideoAcceptedDto | ProcessingCompletedDto)[] = [];
+  private readonly records: PublishedRecord[] = [];
   private nextResult = true;
 
-  publish(event: VideoAcceptedDto | ProcessingCompletedDto): Promise<boolean> {
-    this.events.push(event);
+  publish(type: WorkerEventType, event: WorkerEvent): Promise<boolean> {
+    this.records.push({ type, event });
     return Promise.resolve(this.nextResult);
   }
 
@@ -17,14 +21,22 @@ export class FakeEventPublisher implements EventPublisher {
     this.nextResult = result;
   }
 
-  get publishedEvents(): readonly (
-    VideoAcceptedDto | ProcessingCompletedDto
-  )[] {
-    return this.events;
+  /** The declared type of each published event, in order. */
+  get publishedTypes(): readonly WorkerEventType[] {
+    return this.records.map((r) => r.type);
+  }
+
+  /** Type and payload together, for assertions about routing. */
+  get published(): readonly PublishedRecord[] {
+    return this.records;
+  }
+
+  get publishedEvents(): readonly WorkerEvent[] {
+    return this.records.map((r) => r.event);
   }
 
   clear(): void {
-    this.events.length = 0;
+    this.records.length = 0;
     this.nextResult = true;
   }
 }

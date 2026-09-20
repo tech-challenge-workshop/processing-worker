@@ -78,7 +78,10 @@ export class ValidationConsumer {
       occurredAt: dto.occurredAt,
     };
 
-    const published = await this.eventPublisher.publish(accepted);
+    const published = await this.eventPublisher.publish(
+      'VideoAccepted',
+      accepted,
+    );
     if (!published) {
       throw new Error('Failed to publish VideoAccepted');
     }
