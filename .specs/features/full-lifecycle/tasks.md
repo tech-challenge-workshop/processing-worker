@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/full-lifecycle/design.md`
-**Status**: Draft
+**Status**: Done
 
 ---
 
@@ -86,10 +86,10 @@ T11
 
 **Done when**:
 
-- [ ] All five event types are present in the union
-- [ ] Every type maps to a distinct client token and pattern
-- [ ] A test asserts the mapping is total over the union, so a new type without a route fails the type check
-- [ ] Quick gate passes: `npm test`
+- [x] All five event types are present in the union
+- [x] Every type maps to a distinct client token and pattern
+- [x] A test asserts the mapping is total over the union, so a new type without a route fails the type check
+- [x] Quick gate passes: `npm test`
 
 **Tests**: unit
 **Gate**: quick
@@ -111,12 +111,12 @@ T11
 
 **Done when**:
 
-- [ ] No inference from payload shape remains anywhere in the file
-- [ ] Each event type is asserted to reach its own client with its own pattern
-- [ ] An unroutable type throws rather than falling back to a default destination
-- [ ] A transport error still resolves to `false` rather than throwing
-- [ ] Existing publisher tests are updated to the new signature with no assertion weakened
-- [ ] Quick gate passes: `npm test`
+- [x] No inference from payload shape remains anywhere in the file
+- [x] Each event type is asserted to reach its own client with its own pattern
+- [x] An unroutable type throws rather than falling back to a default destination
+- [x] A transport error still resolves to `false` rather than throwing
+- [x] Existing publisher tests are updated to the new signature with no assertion weakened
+- [x] Quick gate passes: `npm test`
 
 **Tests**: unit
 **Gate**: quick
@@ -138,9 +138,9 @@ T11
 
 **Done when**:
 
-- [ ] Three new clients are registered with durable queues, matching the existing entries
-- [ ] Every token named in `EVENT_ROUTES` resolves at boot
-- [ ] Build gate passes: `npm run lint && npm test && npm run test:e2e && npm run build`
+- [x] Three new clients are registered with durable queues, matching the existing entries
+- [x] Every token named in `EVENT_ROUTES` resolves at boot
+- [x] Build gate passes: `npm run lint && npm test && npm run test:e2e && npm run build`
 
 **Tests**: unit
 **Gate**: build
@@ -162,9 +162,9 @@ T11
 
 **Done when**:
 
-- [ ] The outcome is a discriminated union of accepted and rejected, with the failure code required only on rejection
-- [ ] The failure code type is the closed vocabulary from the foundation
-- [ ] Quick gate passes: `npm test`
+- [x] The outcome is a discriminated union of accepted and rejected, with the failure code required only on rejection
+- [x] The failure code type is the closed vocabulary from the foundation
+- [x] Quick gate passes: `npm test`
 
 **Tests**: none
 **Gate**: quick
@@ -186,9 +186,9 @@ T11
 
 **Done when**:
 
-- [ ] Every input is accepted
-- [ ] The class name states plainly that it accepts everything, so a green suite is not mistaken for real validation
-- [ ] Quick gate passes: `npm test`
+- [x] Every input is accepted
+- [x] The class name states plainly that it accepts everything, so a green suite is not mistaken for real validation
+- [x] Quick gate passes: `npm test`
 
 **Tests**: unit
 **Gate**: quick
@@ -210,8 +210,8 @@ T11
 
 **Done when**:
 
-- [ ] The DTO matches the payload the Catalog's rejection consumer expects
-- [ ] Quick gate passes: `npm test`
+- [x] The DTO matches the payload the Catalog's rejection consumer expects
+- [x] Quick gate passes: `npm test`
 
 **Tests**: none
 **Gate**: quick
@@ -233,13 +233,13 @@ T11
 
 **Done when**:
 
-- [ ] An accepted video publishes `VideoAccepted` and no rejection
-- [ ] A rejected video publishes `VideoRejected` carrying the reported code, and no acceptance
-- [ ] Each defined failure code is driven through a validator double and asserted
-- [ ] A generated `eventId` is asserted to be a well-formed fresh identifier, not merely different from the input
-- [ ] A redelivered job publishes no second outcome
-- [ ] A publication failure prevents the ack
-- [ ] Full gate passes: `npm test && npm run test:e2e`
+- [x] An accepted video publishes `VideoAccepted` and no rejection
+- [x] A rejected video publishes `VideoRejected` carrying the reported code, and no acceptance
+- [x] Each defined failure code is driven through a validator double and asserted
+- [x] A generated `eventId` is asserted to be a well-formed fresh identifier, not merely different from the input
+- [x] A redelivered job publishes no second outcome
+- [x] A publication failure prevents the ack
+- [x] Full gate passes: `npm test && npm run test:e2e`
 
 **Tests**: unit
 **Gate**: full
@@ -261,8 +261,8 @@ T11
 
 **Done when**:
 
-- [ ] The DTO matches the payload the Catalog's start consumer expects
-- [ ] Quick gate passes: `npm test`
+- [x] The DTO matches the payload the Catalog's start consumer expects
+- [x] Quick gate passes: `npm test`
 
 **Tests**: none
 **Gate**: quick
@@ -284,8 +284,8 @@ T11
 
 **Done when**:
 
-- [ ] The DTO matches the payload the Catalog's failure consumer expects
-- [ ] Quick gate passes: `npm test`
+- [x] The DTO matches the payload the Catalog's failure consumer expects
+- [x] Quick gate passes: `npm test`
 
 **Tests**: none
 **Gate**: quick
@@ -307,13 +307,13 @@ T11
 
 **Done when**:
 
-- [ ] `ProcessingStarted` is published before any work, asserted by event order and not only by presence
-- [ ] A successful job publishes `ProcessingCompleted` with the `attemptId` and deterministic key
-- [ ] A failing job publishes `ProcessingFailed` with `PROCESSAMENTO_FALHOU`
-- [ ] Exactly one of completed or failed is published per job, never both and never neither
-- [ ] A failure to publish `ProcessingStarted` prevents the work from beginning and nacks the job
-- [ ] A redelivered job creates no second attempt and publishes no second outcome
-- [ ] Full gate passes: `npm test && npm run test:e2e`
+- [x] `ProcessingStarted` is published before any work, asserted by event order and not only by presence
+- [x] A successful job publishes `ProcessingCompleted` with the `attemptId` and deterministic key
+- [x] A failing job publishes `ProcessingFailed` with `PROCESSAMENTO_FALHOU`
+- [x] Exactly one of completed or failed is published per job, never both and never neither
+- [x] A failure to publish `ProcessingStarted` prevents the work from beginning and nacks the job
+- [x] A redelivered job creates no second attempt and publishes no second outcome
+- [x] Full gate passes: `npm test && npm run test:e2e`
 
 **Tests**: unit
 **Gate**: full
@@ -335,11 +335,11 @@ T11
 
 **Done when**:
 
-- [ ] A successful job produces `ProcessingStarted` then `ProcessingCompleted`, in that order
-- [ ] A failed job produces `ProcessingStarted` then `ProcessingFailed`, in that order
-- [ ] Every published event is asserted by destination and pattern, which is what would have caught the routing defect this slice removes
-- [ ] Replaying either job publishes nothing further
-- [ ] Build gate passes: `npm run lint && npm test && npm run test:e2e && npm run build`
+- [x] A successful job produces `ProcessingStarted` then `ProcessingCompleted`, in that order
+- [x] A failed job produces `ProcessingStarted` then `ProcessingFailed`, in that order
+- [x] Every published event is asserted by destination and pattern, which is what would have caught the routing defect this slice removes
+- [x] Replaying either job publishes nothing further
+- [x] Build gate passes: `npm run lint && npm test && npm run test:e2e && npm run build`
 
 **Tests**: e2e
 **Gate**: build
@@ -423,3 +423,25 @@ No task depends on a task in a later phase.
 | T11 | Job lifecycle | e2e | e2e | ✅ OK |
 
 The four `Tests: none` tasks all declare shape and carry no behaviour, which is what the matrix assigns `none` to. Each is proven where it is used: T4 by T5 and T7, T6 by T7, and T8 and T9 by T10 and T11, every one of which asserts the published payload rather than the declaration.
+
+---
+
+## Execution record
+
+**Completed**: 2026-09-21 · merged in [#4](https://github.com/tech-challenge-workshop/processing-worker/pull/4)
+
+Final gate: lint, typecheck, 57 unit tests, 14 e2e, build - all green.
+
+### Deviations
+
+| Deviation | Why |
+| --- | --- |
+| T3 executed before T2 | The dependency runs the other way: the publisher resolves five client tokens through `EVENT_ROUTES` and cannot start until they are registered |
+| T2 touched more files than its `Where` named | Changing the `publish` signature is a contract change that cannot land in halves - the interface, the publisher, the fake and both call sites must move together |
+| A `FramePackager` port was added, which the plan did not list | The failure branch is otherwise untestable: the placeholder work never throws, and the skill forbids a task that produces unverified code. Same seam shape as `VideoValidator`; S4 fills both |
+
+### Existing assertions updated
+
+Nine assertions expected a single published event per job. They contradicted LC-09,
+which requires the start to precede the outcome, so they now assert the ordered pair
+rather than a count. None was weakened.
