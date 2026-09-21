@@ -1,36 +1,33 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { ClientProxy } from '@nestjs/microservices';
 import { catchError, lastValueFrom, map, of } from 'rxjs';
-import { EventPublisher } from './event-publisher.interface';
-import { ProcessingCompletedDto } from './dto/processing-completed.dto';
-import { VideoAcceptedDto } from './dto/video-accepted.dto';
+import { EventPublisher, type WorkerEvent } from './event-publisher.interface';
+import { EVENT_ROUTES, type WorkerEventType } from './event-routes';
 
 @Injectable()
 export class RabbitmqEventPublisher implements EventPublisher {
-  constructor(
-    @Inject('RMQ_VIDEO_ACCEPTED_CLIENT')
-    private readonly videoAcceptedClient: ClientProxy,
-    @Inject('RMQ_PROCESSING_COMPLETED_CLIENT')
-    private readonly processingCompletedClient: ClientProxy,
-  ) {}
+  constructor(private readonly moduleRef: ModuleRef) {}
 
-  async publish(
-    event: VideoAcceptedDto | ProcessingCompletedDto,
-  ): Promise<boolean> {
-    const pattern = this.getPattern(event);
-    const client =
-      'zipStorageKey' in event
-        ? this.processingCompletedClient
-        : this.videoAcceptedClient;
+  async publish(type: WorkerEventType, event: WorkerEvent): Promise<boolean> {
+    const route = EVENT_ROUTES[type];
+
+    if (!route) {
+      // Reached only if a caller defeats the type system. Throwing keeps an
+      // unroutable event from being delivered to whichever queue happens to
+      // be first, which is the failure this design exists to remove.
+      throw new Error(`No route configured for event type ${String(type)}`);
+    }
+
+    const client = this.moduleRef.get<ClientProxy>(route.client, {
+      strict: false,
+    });
+
     return lastValueFrom(
-      client.emit(pattern, event).pipe(
+      client.emit(route.pattern, event).pipe(
         map(() => true),
         catchError(() => of(false)),
       ),
     );
-  }
-
-  private getPattern(event: VideoAcceptedDto | ProcessingCompletedDto): string {
-    return 'zipStorageKey' in event ? 'ProcessingCompleted' : 'VideoAccepted';
   }
 }
