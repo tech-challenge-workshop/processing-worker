@@ -1,8 +1,9 @@
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
 import { AcceptAllVideoValidator } from './accept-all-video-validator';
+import type { VideoValidator } from './video-validator.interface';
 
 describe('AcceptAllVideoValidator', () => {
-  const validator = new AcceptAllVideoValidator();
+  const validator: VideoValidator = new AcceptAllVideoValidator();
 
   const job: VideoValidationRequestedDto = {
     eventId: 'event-1',

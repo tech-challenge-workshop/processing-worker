@@ -1,3 +1,4 @@
+import { ProcessingCompletedDto } from './../src/messaging/dto/processing-completed.dto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './../src/app.module';
 import { ProcessingConsumer } from './../src/processing/processing.consumer';
@@ -46,7 +47,7 @@ describe('Processing flow (e2e)', () => {
       'ProcessingStarted',
       'ProcessingCompleted',
     ]);
-    const event = publisher.publishedEvents[1];
+    const event = publisher.publishedEvents[1] as ProcessingCompletedDto;
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.attemptId).toBe(dto.attemptId);
     expect(event.eventId).not.toBe(dto.eventId);
@@ -111,7 +112,7 @@ describe('Processing flow (e2e)', () => {
     it('reports a safe failure code and the attempt it concerns', async () => {
       await failing.handleProcessingQueued(dto);
 
-      const failed = publisher.published[1].event as {
+      const failed = publisher.published[1].event as unknown as {
         failureCode: string;
         attemptId: string;
         eventId: string;

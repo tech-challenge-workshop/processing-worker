@@ -1,3 +1,4 @@
+import { ProcessingCompletedDto } from './../src/messaging/dto/processing-completed.dto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ClientProxy } from '@nestjs/microservices';
 import { RmqContext } from '@nestjs/microservices';
@@ -100,7 +101,7 @@ describe('Local Docker Integration (e2e)', () => {
       'ProcessingStarted',
       'ProcessingCompleted',
     ]);
-    const event = publisher.publishedEvents[1];
+    const event = publisher.publishedEvents[1] as ProcessingCompletedDto;
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.attemptId).toBe(dto.attemptId);
     expect(event.zipStorageKey).toBe(
