@@ -85,6 +85,7 @@ T13 -> T14
 ```
 T15 -> T17
 T16 -> T17
+T18 -> T17
 ```
 
 ---
@@ -529,9 +530,9 @@ T16 -> T17
 
 **What**: An e2e suite asserting that a redelivered job costs nothing and that no job leaves a temporary directory behind.
 **Where**: `test/real-media.e2e-spec.ts`
-**Depends on**: T14, T15, T16
+**Depends on**: T14, T15, T16, T18
 **Reuses**: The existing e2e harness and the in-memory storage adapter as the observation point
-**Requirement**: RM-13, RM-16
+**Requirement**: RM-13, RM-16, RM-18
 
 **Tools**:
 
@@ -539,7 +540,7 @@ T16 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Publishing the same `ProcessingQueued` twice yields one stored object, one extraction, and two identical `ProcessingCompleted` events
+- [ ] Publishing the same `ProcessingQueued` twice yields one stored object, one extraction, and two `ProcessingCompleted` events identical down to their `eventId`
 - [ ] A redelivered validation job yields the same outcome it yielded the first time
 - [ ] The system temp directory holds no leftover job directory after a successful job, a failed job, and a job killed by a timeout
 - [ ] The suite fails if the packager is replaced by one that stores nothing - verified by actually making that substitution, not by assuming
@@ -551,17 +552,43 @@ T16 -> T17
 
 ---
 
+### T18: Derive outcome event ids from the consumed event
+
+**What**: Replace `randomUUID()` in both consumers with an `eventId` derived from the consumed event's id and the outcome type, so a redelivered job republishes under the same id.
+**Where**: `src/messaging/outcome-event-id.ts`, `src/validation/validation.consumer.ts`, `src/processing/processing.consumer.ts`
+**Depends on**: None
+**Reuses**: The consumers' existing publication paths; `node:crypto` for the hash
+**Requirement**: RM-18
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+- [ ] `outcomeEventId` returns a v5-formatted UUID, the same for the same inputs and different for a different consumed id or a different outcome
+- [ ] No `randomUUID()` remains on any outcome publication path in either consumer
+- [ ] `ProcessingStarted` and `ProcessingCompleted` for the same job carry different ids
+- [ ] Consumer tests assert that consuming the same message twice publishes the same `eventId` both times, for every outcome type
+- [ ] Quick gate passes: `npm test`
+- [ ] Test count: at least 5 new tests pass (no silent deletions)
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
 ## Phase Execution Map
 
 Phases run in sequence; tasks within a phase run in order.
 
 ```
-Phase 1 (T1 T2 T3 T4) then Phase 2 (T5 T6 T7) then Phase 3 (T8 T9 T10) then Phase 4 (T11 T12 T13 T14) then Phase 5 (T15 T16 T17)
+Phase 1 (T1 T2 T3 T4) then Phase 2 (T5 T6 T7) then Phase 3 (T8 T9 T10) then Phase 4 (T11 T12 T13 T14) then Phase 5 (T15 T16 T18 T17)
 ```
 
-Execution is strictly sequential - there is no intra-phase parallelism.
+Execution is strictly sequential - there is no intra-phase parallelism. T18 was added after the S1–S3 verification of 2026-09-24 and runs before T17, which proves it end to end.
 
-17 tasks pack into three task-budgeted batches at ~7 tasks per worker, cutting only on phase boundaries: **Phase 1 + Phase 2** (7), **Phase 3 + Phase 4** (7), **Phase 5** (3). Because that is more than one batch, Execute must present the sub-agent offer before dispatching, and the Verifier runs automatically after T17.
+18 tasks pack into three task-budgeted batches at ~7 tasks per worker, cutting only on phase boundaries: **Phase 1 + Phase 2** (7), **Phase 3 + Phase 4** (7), **Phase 5** (4). Because that is more than one batch, Execute must present the sub-agent offer before dispatching, and the Verifier runs automatically after T17.
 
 ---
 
@@ -586,6 +613,7 @@ Execution is strictly sequential - there is no intra-phase parallelism.
 | T15: Prefetch per queue | 1 file | ✅ Granular |
 | T16: Terminal failure path | 1 file | ✅ Granular |
 | T17: Redelivery and cleanup e2e | 1 test file | ✅ Granular |
+| T18: Derived outcome event ids | 1 function + its two call sites | ✅ Granular (cohesive - the function is unverifiable unused) |
 
 ---
 
@@ -611,7 +639,8 @@ Parity is required **within** a phase. A dependency reaching back into an earlie
 | T14 | T7 (ph2), T13 | T13 → T14 | ✅ Match |
 | T15 | None | — | ✅ Match |
 | T16 | T13 (ph4) | — cross-phase | ✅ Match |
-| T17 | T14 (ph4), T15, T16 | T15 → T17, T16 → T17 | ✅ Match |
+| T17 | T14 (ph4), T15, T16, T18 | T15 → T17, T16 → T17, T18 → T17 | ✅ Match |
+| T18 | None | — | ✅ Match |
 
 No task depends on a later phase.
 
@@ -638,5 +667,6 @@ No task depends on a later phase.
 | T15 | Consumers and module wiring | e2e | e2e | ✅ OK |
 | T16 | Consumers | unit | unit | ✅ OK |
 | T17 | Consumers and module wiring | e2e | e2e | ✅ OK |
+| T18 | Consumers | unit | unit | ✅ OK |
 
 T1 is the only `Tests: none`, and the matrix says `none` for the Dockerfile layer: it declares environment and carries no branching. Its correctness is proved by T4, which fails readiness when the binaries are absent.

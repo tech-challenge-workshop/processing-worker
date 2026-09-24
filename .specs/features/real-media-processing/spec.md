@@ -51,6 +51,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | How idempotency is decided on redelivery | By the existence of an object at the deterministic key | The key is already derived from `processingRequestId` and `attemptId`, so a technical redelivery addresses the same object. Storage is the one place that survives a restart, which local state does not | n |
 | Whether ZIP entries are compressed | Stored without compression | JPEG frames do not compress meaningfully, so the CPU spent is spent for nothing | n |
 | Frame image format and naming | JPEG, zero-padded sequential names | Zero padding keeps lexical order equal to temporal order, which is what a consumer extracting the archive will assume | n |
+| How an outcome event gets its `eventId` | Derived deterministically (UUIDv5) from the consumed event's `eventId` and the outcome's type, instead of `randomUUID()` | Today every redelivery republishes its outcome under a fresh id, so the Catalog's `eventId` deduplication never recognises it: a republished `ProcessingCompleted` reaches a `COMPLETED` request as a new event, fails the domain guard and is dead-lettered. A derived id turns the republish into a duplicate the Catalog already absorbs. Found by the S1–S3 verification of 2026-09-24 | n |
+| What happens when storage is unreachable during **validation** | The job is nacked with requeue; no `VideoRejected` is published | Rejecting would tell the user their file is invalid when the fault is ours. Processing fails terminally (P3) because a business attempt already exists; validation has none yet. The retry is bounded only once the broker policy covers `video-validation` with a delivery limit, which is tracked outside this slice | n |
 
 **Open questions:** none - all resolved or logged above.
 
@@ -128,8 +130,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 1. WHEN a processing job is redelivered and an archive already exists at its deterministic key THEN the Worker SHALL republish `ProcessingCompleted` with that key and SHALL NOT extract again.
 2. WHEN a job is redelivered THEN the Worker SHALL NOT store a second object.
 3. WHEN a validation job is redelivered THEN the Worker SHALL publish the same outcome it published the first time.
+4. WHEN the Worker publishes an outcome event THEN its `eventId` SHALL be derived deterministically from the consumed event's `eventId` and the outcome type, so that a redelivered job republishes under the same `eventId`.
+5. WHEN a republished outcome reaches the Catalog THEN it SHALL be absorbed by the Catalog's `eventId` deduplication and SHALL NOT be dead-lettered.
 
-**Independent Test**: Publish the same `ProcessingQueued` event twice and confirm one stored object, one extraction, and two identical `ProcessingCompleted` events.
+**Independent Test**: Publish the same `ProcessingQueued` event twice and confirm one stored object, one extraction, and two `ProcessingCompleted` events identical down to their `eventId`.
 
 ---
 
@@ -155,7 +159,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 - WHEN a video's duration is not a whole number of seconds THEN the Worker SHALL produce the number of frames FFmpeg emits at 1 frame per second, and the archive entry count SHALL match it.
 - IF a video is shorter than one second THEN the Worker SHALL still produce at least one frame and SHALL complete rather than fail.
 - IF the source object exists but has zero length THEN the Worker SHALL publish `VideoRejected` with `FORMATO_INVALIDO`.
-- IF object storage is unreachable while reading the source THEN the Worker SHALL publish `ProcessingFailed` with `PROCESSAMENTO_FALHOU` rather than leaving the job silently unacknowledged.
+- IF object storage is unreachable while reading the source for a processing job THEN the Worker SHALL publish `ProcessingFailed` with `PROCESSAMENTO_FALHOU` rather than leaving the job silently unacknowledged.
+- IF object storage is unreachable during a validation job THEN the Worker SHALL NOT publish `VideoRejected` and SHALL nack the job with requeue, because the fault is not the user's file.
 - IF FFmpeg exits non-zero after writing some frames THEN the Worker SHALL treat the job as failed and SHALL NOT store a partial archive.
 - IF the FFmpeg process exceeds its configured timeout THEN the Worker SHALL terminate it, publish `ProcessingFailed` with `PROCESSAMENTO_FALHOU`, and remove the temporary directory.
 - WHEN the Worker is shut down while a job is in flight THEN it SHALL NOT acknowledge that job, so that another replica receives it.
@@ -182,12 +187,13 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 | RM-15 | P2: Extraction that produces a ZIP | Design | Pending |
 | RM-16 | P3: Failure that is honest and terminal | Design | Pending |
 | RM-17 | P3: Failure that is honest and terminal | Design | Pending |
+| RM-18 | P4: A redelivery costs nothing | Design | Pending |
 
 **ID format:** `[CATEGORY]-[NUMBER]`
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 11 total, 0 mapped to tasks, 11 unmapped ⚠️
+**Coverage:** 12 total, 0 mapped to tasks, 12 unmapped ⚠️
 
 ---
 
@@ -197,7 +203,7 @@ How we know the feature is successful:
 
 - [ ] A real 8-second MP4 yields a stored ZIP with 8 entries, and the Catalog reports `COMPLETED` with that key
 - [ ] A text file renamed `.mp4` yields `FAILED` with `FORMATO_INVALIDO`; an 11-minute video yields `DURACAO_EXCEDIDA`
-- [ ] Publishing the same `ProcessingQueued` twice leaves one stored object and one extraction
+- [ ] Publishing the same `ProcessingQueued` twice leaves one stored object and one extraction, and the Catalog's dead-letter queue stays empty
 - [ ] No temporary directory remains after any job, including one killed by a timeout
 - [ ] Both queues report a finite prefetch, and queued work beyond it stays `ready` rather than `unacked`
 - [ ] The FFmpeg command line carries an explicit `-threads` value that matches the container's CPU limit
@@ -208,4 +214,12 @@ How we know the feature is successful:
 
 RM-01 to RM-06 in `fiap-x-platform` provide the bucket, the seeded source video and the smoke that proves the archive. This service cannot be demonstrated end to end before they exist, though every story above is testable in isolation against a storage double.
 
-This slice also assumes S3 (`durable-persistence`) is merged: the Catalog it publishes to is the durable one, and the redelivery behaviour in P4 is only meaningful because AD-010 made delivery at-least-once.
+S3 (`durable-persistence`) is merged, and this branch was rebased onto it on 2026-09-24: the Catalog it publishes to is the durable one, and the redelivery behaviour in P4 is only meaningful because AD-010 made delivery at-least-once.
+
+Three findings of the S1–S3 verification (2026-09-24) sit outside this repository and affect how far this slice can be trusted end to end. They are tracked in the gap analysis under "Validar depois", not here:
+
+| Finding | Owner | Effect on this slice |
+| --- | --- | --- |
+| The Catalog can handle `ProcessingCompleted` before `ProcessingStarted` commits and dead-letter it | `processing-catalog` (V3) | A short fixture finishes extraction fast enough to hit the window, so the platform smoke can flake until it is fixed |
+| The broker's dead-letter policy does not match `video-validation` or `processing` | `fiap-x-platform` (V2) | A job this service nacks without requeue is dropped rather than dead-lettered, and a requeued one has no retry limit |
+| The Catalog's database tests are skipped in CI | `processing-catalog` (V1) | Nothing in CI proves the Catalog side of RM-18's deduplication |
