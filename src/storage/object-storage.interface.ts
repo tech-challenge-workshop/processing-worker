@@ -12,6 +12,11 @@ export interface ObjectHead {
  * attempt, and neither belongs in a catch block.
  */
 export interface ObjectStorage {
+  /**
+   * Which adapter this is, reported by readiness so a stack running on the
+   * in-memory adapter is visible rather than silently inert.
+   */
+  readonly adapterName: string;
   /** `undefined` when no object exists at the key; never throws for absence. */
   head(key: string): Promise<ObjectHead | undefined>;
   /** Writes the object at `key` to `destinationPath`. */

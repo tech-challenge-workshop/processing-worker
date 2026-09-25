@@ -14,6 +14,7 @@ interface StoredObject {
  */
 @Injectable()
 export class InMemoryObjectStorage implements ObjectStorage {
+  readonly adapterName = 'in-memory';
   private readonly objects = new Map<string, StoredObject>();
 
   head(key: string): Promise<ObjectHead | undefined> {

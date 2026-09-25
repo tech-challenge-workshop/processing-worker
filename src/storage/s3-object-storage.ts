@@ -32,6 +32,8 @@ export type S3Sender = Pick<S3Client, 'send'>;
  * (AD-005); no provider name appears above this file.
  */
 export class S3ObjectStorage implements ObjectStorage {
+  readonly adapterName = 's3';
+
   constructor(
     private readonly client: S3Sender,
     private readonly bucket: string,

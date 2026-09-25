@@ -273,12 +273,13 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] With credentials configured the root selects the S3 adapter; without them it selects the in-memory one
-- [ ] The readiness response names which storage adapter is in use, so a stack running on the in-memory adapter is visible rather than silently inert
-- [ ] A composition e2e test asserts both selections - this exists because the Catalog once shipped a complete persistence layer that `app.module.ts` never referenced, with 36 tests green and zero tables in the running stack
-- [ ] Full gate passes: `npm test && npm run test:e2e`
-- [ ] Test count: at least 3 new tests pass (no silent deletions)
+- [x] With credentials configured the root selects the S3 adapter; without them it selects the in-memory one
+- [x] The readiness response names which storage adapter is in use, so a stack running on the in-memory adapter is visible rather than silently inert
+- [x] A composition e2e test asserts both selections - this exists because the Catalog once shipped a complete persistence layer that `app.module.ts` never referenced, with 36 tests green and zero tables in the running stack
+- [x] Full gate passes: `npm test && npm run test:e2e`
+- [x] Test count: at least 3 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: e2e
 **Gate**: full
 

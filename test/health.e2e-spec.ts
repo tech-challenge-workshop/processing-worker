@@ -83,6 +83,7 @@ describe('Media readiness (e2e)', () => {
       status: 'ok',
       rabbitmq: true,
       media: { ffmpeg: true, ffprobe: true },
+      storage: 'in-memory',
     });
   });
 
@@ -99,6 +100,7 @@ describe('Media readiness (e2e)', () => {
       status: 'error',
       rabbitmq: true,
       media: { ffmpeg: true, ffprobe: false },
+      storage: 'in-memory',
     });
   });
 
@@ -115,6 +117,7 @@ describe('Media readiness (e2e)', () => {
       status: 'error',
       rabbitmq: true,
       media: { ffmpeg: false, ffprobe: true },
+      storage: 'in-memory',
     });
   });
 
