@@ -611,14 +611,18 @@ T20 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] `ValidationRejectedError`, `ProcessingRejectedError` and `SyntaxError` are nacked without requeue, with no pause
-- [ ] Any other error is requeued only after the configured backoff (default 1000 ms), asserted with fake timers: nothing at `backoff - 1`, the requeue at `backoff`
-- [ ] An unset or invalid `RABBITMQ_RETRY_BACKOFF_MS` falls back to the default
-- [ ] No inline `nack(..., requeue)` decision remains in either consumer; both still rethrow after settling, so Nest's own handling is unchanged
-- [ ] **Established, not assumed**: what Nest's RMQ transport does with a body that is not JSON, before any handler runs. If it requeues, the gap is recorded in this task's evidence and in the gap analysis rather than papered over
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 6 new tests pass (no silent deletions)
+- [x] `ValidationRejectedError`, `ProcessingRejectedError` and `SyntaxError` are nacked without requeue, with no pause
+- [x] Any other error is requeued only after the configured backoff (default 1000 ms), asserted with fake timers: nothing at `backoff - 1`, the requeue at `backoff`
+- [x] An unset or invalid `RABBITMQ_RETRY_BACKOFF_MS` falls back to the default
+- [x] No inline `nack(..., requeue)` decision remains in either consumer; both still rethrow after settling, so Nest's own handling is unchanged
+- [x] **Established, not assumed**: what Nest's RMQ transport does with a body that is not JSON, before any handler runs. If it requeues, the gap is recorded in this task's evidence and in the gap analysis rather than papered over
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 6 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
+
+**Evidence (non-JSON bodies, established 2026-09-25)**: Nest's RMQ transport dead-letters a body that is not JSON on its first delivery, before any handler runs. It does not requeue. Source (`@nestjs/microservices@11.2.3`, `server/server-rmq.js`): `parseMessageContent` catches the `JSON.parse` failure and returns the raw string; `IncomingRequestDeserializer` maps it to `{ pattern: undefined }`; `handleEvent` finds no handler for `undefined` and, because `noAck` is false, calls `channel.nack(message, false, false)`. Observed on `rabbitmq:4-management-alpine` loaded with `fiap-x-platform/rabbitmq/definitions.json` (quorum queues, `dead-letter` policy, `delivery-limit: 5`) and the built Worker: `{not json` sent to `processing` and `plain text body` sent to `video-validation` both reached their `.dlq` with `x-death` `reason=rejected, count=1`, both source queues were empty, and the Worker logged `An unsupported event was received. It has been negative acknowledged, so it will not be re-delivered. Pattern: undefined`. The `SyntaxError` branch of `isPermanentFailure` therefore never fires for a body parsed by Nest. It is kept to mirror the Catalog. No gap to record.
+On the same broker: both consumers reported `ack_required=true` with `prefetch_count` 20 (`video-validation`) and 1 (`processing`) (RM-14). With storage unreachable, one validation job was retried about once per second, with 5 attempts in 6 s. It published no `VideoRejected` and was **not** dead-lettered after more than 5 deliveries, which confirms AD-012: an explicit requeue is not counted against the delivery limit, and the pause is what bounds the loop.
 **Tests**: unit
 **Gate**: quick
 

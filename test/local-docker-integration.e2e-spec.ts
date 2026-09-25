@@ -13,6 +13,7 @@ import { ProcessingQueuedDto } from './../src/messaging/dto/processing-queued.dt
 import { join } from 'node:path';
 import { InMemoryObjectStorage } from './../src/storage/in-memory-object-storage';
 import { OBJECT_STORAGE } from './../src/storage/object-storage.interface';
+import { retryBackoffMs } from './../src/messaging/settle-failed-message';
 
 // The source key the DTOs below name holds a real MP4, so the real FFprobe
 // validator accepts it and the real media packager extracts it.
@@ -196,7 +197,7 @@ describe('Local Docker Integration (e2e)', () => {
     );
   });
 
-  it('nacks failed publications with requeue and does not acknowledge success', async () => {
+  it('nacks failed publications with requeue, only after the retry backoff, and does not acknowledge success', async () => {
     publisher.setNextResult(false);
     const validationDto = createValidationDto();
     const processingDto = createProcessingDto();
@@ -212,15 +213,44 @@ describe('Local Docker Integration (e2e)', () => {
       nack: processingNack,
     } = createContext();
 
-    await expect(
-      validationConsumer.handleVideoValidationRequested(
-        validationDto,
-        validationCtx,
-      ),
-    ).rejects.toThrow();
-    await expect(
-      processingConsumer.handleProcessingQueued(processingDto, processingCtx),
-    ).rejects.toThrow();
+    const backoff = retryBackoffMs();
+    // Both handlers do real I/O (FFprobe runs first for validation), so the
+    // clock only moves once both publish attempts have failed - the point at
+    // which settling begins. Ticks and immediates stay real so that I/O flows.
+    let attempts = 0;
+    let bothAttempted!: () => void;
+    const attempted = new Promise<void>((resolve) => (bothAttempted = resolve));
+    const publish = publisher.publish.bind(publisher);
+    jest.spyOn(publisher, 'publish').mockImplementation(async (type, event) => {
+      const result = await publish(type, event);
+      if (++attempts === 2) bothAttempted();
+      return result;
+    });
+    jest.useFakeTimers({
+      doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'],
+    });
+    try {
+      const validationHandled = expect(
+        validationConsumer.handleVideoValidationRequested(
+          validationDto,
+          validationCtx,
+        ),
+      ).rejects.toThrow();
+      const processingHandled = expect(
+        processingConsumer.handleProcessingQueued(processingDto, processingCtx),
+      ).rejects.toThrow();
+      await attempted;
+      // RM-20: neither is requeued before the backoff has elapsed.
+      await jest.advanceTimersByTimeAsync(backoff - 1);
+      expect(validationNack).not.toHaveBeenCalled();
+      expect(processingNack).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(1);
+      await validationHandled;
+      await processingHandled;
+    } finally {
+      jest.useRealTimers();
+    }
 
     expect(validationAck).not.toHaveBeenCalled();
     expect(processingAck).not.toHaveBeenCalled();

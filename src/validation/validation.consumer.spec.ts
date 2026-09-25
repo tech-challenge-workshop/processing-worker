@@ -9,6 +9,7 @@ import { FakeEventPublisher } from '../messaging/fake-event-publisher';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
 import { AcceptAllVideoValidator } from './accept-all-video-validator';
 import { outcomeEventId } from '../messaging/outcome-event-id';
+import { retryBackoffMs } from '../messaging/settle-failed-message';
 import type {
   FailureCode,
   ValidationOutcome,
@@ -134,29 +135,57 @@ describe('ValidationConsumer', () => {
     expect(nack).not.toHaveBeenCalled();
   });
 
-  it('nacks a malformed message without requeue', async () => {
+  it('nacks a malformed message without requeue, without waiting the retry backoff', async () => {
     const dto = createDto({ processingRequestId: '' });
     const { ctx, ack, nack } = createContext();
-
-    await expect(
-      consumer.handleVideoValidationRequested(dto, ctx),
-    ).rejects.toThrow(ValidationRejectedError);
+    jest.useFakeTimers();
+    try {
+      // Settles with the clock frozen, so no backoff was waited (RM-20).
+      await expect(
+        consumer.handleVideoValidationRequested(dto, ctx),
+      ).rejects.toThrow(ValidationRejectedError);
+    } finally {
+      jest.useRealTimers();
+    }
 
     expect(ack).not.toHaveBeenCalled();
     expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
   });
 
-  it('nacks a failed publication with requeue', async () => {
+  /** Runs `handle`, asserting the requeue lands at the backoff and not before. */
+  const expectRequeueAfterBackoff = async (
+    handle: () => Promise<void>,
+    error: string,
+    nack: jest.Mock,
+  ): Promise<void> => {
+    const backoff = retryBackoffMs();
+    jest.useFakeTimers();
+    try {
+      const handled = expect(handle()).rejects.toThrow(error);
+      await jest.advanceTimersByTimeAsync(backoff - 1);
+      expect(nack).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(1);
+      await handled;
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(nack).toHaveBeenCalledTimes(1);
+    expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
+  };
+
+  it('requeues a failed publication only after the retry backoff (RM-20)', async () => {
     const dto = createDto();
     publisher.setNextResult(false);
     const { ctx, ack, nack } = createContext();
 
-    await expect(
-      consumer.handleVideoValidationRequested(dto, ctx),
-    ).rejects.toThrow('Failed to publish VideoAccepted');
+    await expectRequeueAfterBackoff(
+      () => consumer.handleVideoValidationRequested(dto, ctx),
+      'Failed to publish VideoAccepted',
+      nack,
+    );
 
     expect(ack).not.toHaveBeenCalled();
-    expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
   });
 
   describe('when the validator rejects the video', () => {
@@ -215,9 +244,11 @@ describe('ValidationConsumer', () => {
       publisher.setNextResult(false);
       const { ctx, ack, nack } = createContext();
 
-      await expect(
-        rejecting.handleVideoValidationRequested(createDto(), ctx),
-      ).rejects.toThrow('Failed to publish VideoRejected');
+      await expectRequeueAfterBackoff(
+        () => rejecting.handleVideoValidationRequested(createDto(), ctx),
+        'Failed to publish VideoRejected',
+        nack,
+      );
 
       expect(ack).not.toHaveBeenCalled();
       expect(nack).toHaveBeenCalledWith({}, false, true);
