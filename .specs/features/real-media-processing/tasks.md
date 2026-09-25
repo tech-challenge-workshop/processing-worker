@@ -110,11 +110,12 @@ T19 -> T17
 
 **Done when**:
 
-- [ ] `ffmpeg` and `ffprobe` are both callable in the final stage
-- [ ] The builder stage is not carrying the media packages it does not use
-- [ ] The image still starts with `node dist/main`
-- [ ] Build gate passes: `npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run build`
+- [x] `ffmpeg` and `ffprobe` are both callable in the final stage
+- [x] The builder stage is not carrying the media packages it does not use
+- [x] The image still starts with `node dist/main`
+- [x] Build gate passes: `npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run build`
 
+**Status**: ✅ Complete
 **Tests**: none
 **Gate**: build
 
