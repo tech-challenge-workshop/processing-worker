@@ -87,6 +87,7 @@ T15 -> T17
 T16 -> T17
 T18 -> T17
 T19 -> T17
+T20 -> T17
 ```
 
 ---
@@ -545,7 +546,7 @@ T19 -> T17
 
 **What**: An e2e suite asserting that a redelivered job costs nothing and that no job leaves a temporary directory behind.
 **Where**: `test/real-media.e2e-spec.ts`
-**Depends on**: T14, T15, T16, T18, T19
+**Depends on**: T14, T15, T16, T18, T19, T20
 **Reuses**: The existing e2e harness and the in-memory storage adapter as the observation point
 **Requirement**: RM-13, RM-16, RM-18
 
@@ -620,17 +621,44 @@ T19 -> T17
 
 ---
 
+### T20: Store archives under the retained `zips/` prefix
+
+**What**: Change the single archive-key derivation from `local/<processingRequestId>/<attemptId>/frames.zip` to `zips/<processingRequestId>/<attemptId>/frames.zip`.
+**Where**: `src/processing/deterministic-frame-packager.ts` (`frameArchiveKey`)
+**Depends on**: None
+**Reuses**: `frameArchiveKey()`, which batch 3 made the one definition of the key format
+**Requirement**: RM-11 (deterministic key); platform RM-03 (7-day retention applies to `sources/` and `zips/`)
+
+**Why**: The platform's bucket layout and its lifecycle rules cover only `sources/` and `zips/`. Under `local/`, every stored archive escapes the 7-day retention the product rule requires. Found by batch 3; the key's shape, not its derivation, was wrong.
+
+**Tools**:
+
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+- [ ] `frameArchiveKey` returns `zips/<processingRequestId>/<attemptId>/frames.zip`, and it remains the only place the format is written
+- [ ] Every test that asserted a `local/` key asserts the `zips/` key instead - the expected value changes because the spec'd location changed; no assertion is loosened to a pattern
+- [ ] No `local/` archive key remains in `src/` or `test/`
+- [ ] Quick gate passes: `npm test` (in the FFmpeg container)
+- [ ] Test count unchanged or higher (no silent deletions)
+
+**Tests**: unit
+**Gate**: quick
+
+---
+
 ## Phase Execution Map
 
 Phases run in sequence; tasks within a phase run in order.
 
 ```
-Phase 1 (T1 T2 T3 T4) then Phase 2 (T5 T6 T7) then Phase 3 (T8 T9 T10) then Phase 4 (T11 T12 T13 T14) then Phase 5 (T15 T16 T18 T19 T17)
+Phase 1 (T1 T2 T3 T4) then Phase 2 (T5 T6 T7) then Phase 3 (T8 T9 T10) then Phase 4 (T11 T12 T13 T14) then Phase 5 (T15 T16 T18 T19 T20 T17)
 ```
 
-Execution is strictly sequential - there is no intra-phase parallelism. T18 was added after the S1–S3 verification of 2026-09-24 and T19 after `fix/pre-s4-hardening` merged (2026-09-25, AD-012); both run before T17, whose build gate covers them.
+Execution is strictly sequential - there is no intra-phase parallelism. T18 was added after the S1–S3 verification of 2026-09-24 and T19 after `fix/pre-s4-hardening` merged (2026-09-25, AD-012); both run before T17, whose build gate covers them. T20 was added by the orchestrator after batch 3 found archives stored outside the retained prefixes.
 
-19 tasks pack into three task-budgeted batches at ~7 tasks per worker, cutting only on phase boundaries: **Phase 1 + Phase 2** (7), **Phase 3 + Phase 4** (7), **Phase 5** (5). Because that is more than one batch, Execute must present the sub-agent offer before dispatching, and the Verifier runs automatically after T17.
+20 tasks pack into three task-budgeted batches at ~7 tasks per worker, cutting only on phase boundaries: **Phase 1 + Phase 2** (7), **Phase 3 + Phase 4** (7), **Phase 5** (6). Because that is more than one batch, Execute must present the sub-agent offer before dispatching, and the Verifier runs automatically after T17.
 
 ---
 
@@ -657,6 +685,7 @@ Execution is strictly sequential - there is no intra-phase parallelism. T18 was 
 | T17: Redelivery and cleanup e2e | 1 test file | ✅ Granular |
 | T18: Derived outcome event ids | 1 function + its two call sites | ✅ Granular (cohesive - the function is unverifiable unused) |
 | T19: Retry pause and failure classification | 1 function + its two call sites | ✅ Granular (cohesive - the function is unverifiable unused) |
+| T20: Archive key under `zips/` | 1 function | ✅ Granular |
 
 ---
 
@@ -682,9 +711,10 @@ Parity is required **within** a phase. A dependency reaching back into an earlie
 | T14 | T7 (ph2), T13 | T13 → T14 | ✅ Match |
 | T15 | None | — | ✅ Match |
 | T16 | T13 (ph4) | — cross-phase | ✅ Match |
-| T17 | T14 (ph4), T15, T16, T18, T19 | T15 → T17, T16 → T17, T18 → T17, T19 → T17 | ✅ Match |
+| T17 | T14 (ph4), T15, T16, T18, T19, T20 | T15 → T17, T16 → T17, T18 → T17, T19 → T17, T20 → T17 | ✅ Match |
 | T18 | None | — | ✅ Match |
 | T19 | None | — | ✅ Match |
+| T20 | None | — | ✅ Match |
 
 No task depends on a later phase.
 
@@ -713,5 +743,6 @@ No task depends on a later phase.
 | T17 | Consumers and module wiring | e2e | e2e | ✅ OK |
 | T18 | Consumers | unit | unit | ✅ OK |
 | T19 | Consumers | unit | unit | ✅ OK |
+| T20 | Frame packager | unit | unit | ✅ OK |
 
 T1 is the only `Tests: none`, and the matrix says `none` for the Dockerfile layer: it declares environment and carries no branching. Its correctness is proved by T4, which fails readiness when the binaries are absent.
