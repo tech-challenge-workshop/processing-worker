@@ -10,6 +10,13 @@ import { FakeEventPublisher } from './../src/messaging/fake-event-publisher';
 import { InMemoryDuplicateChecker } from './../src/validation/in-memory-duplicate-checker';
 import { VideoValidationRequestedDto } from './../src/messaging/dto/video-validation-requested.dto';
 import { ProcessingQueuedDto } from './../src/messaging/dto/processing-queued.dto';
+import { join } from 'node:path';
+import { InMemoryObjectStorage } from './../src/storage/in-memory-object-storage';
+import { OBJECT_STORAGE } from './../src/storage/object-storage.interface';
+
+// The source key the DTOs below name holds a real MP4, so the real FFprobe
+// validator the root binds accepts it.
+const SAMPLE = join(__dirname, 'fixtures', 'sample-8s.mp4');
 
 describe('Local Docker Integration (e2e)', () => {
   let validationConsumer: ValidationConsumer;
@@ -59,6 +66,12 @@ describe('Local Docker Integration (e2e)', () => {
   beforeEach(async () => {
     publisher = new FakeEventPublisher();
     duplicateChecker = new InMemoryDuplicateChecker();
+    const storage = new InMemoryObjectStorage();
+    await storage.upload(
+      createValidationDto().sourceStorageKey,
+      SAMPLE,
+      'video/mp4',
+    );
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -69,6 +82,8 @@ describe('Local Docker Integration (e2e)', () => {
       .useValue(duplicateChecker)
       .overrideProvider('RMQ_CLIENT')
       .useValue(fakeClient)
+      .overrideProvider(OBJECT_STORAGE)
+      .useValue(storage)
       .compile();
 
     validationConsumer =

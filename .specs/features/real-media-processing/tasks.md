@@ -358,13 +358,14 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] The production factory binds `VIDEO_VALIDATOR` to the FFprobe implementation
-- [ ] `AcceptAllVideoValidator` remains in the tree as a test double and is never bound by the production factory
-- [ ] The composition e2e test from T7 is extended to assert which validator the root selects
-- [ ] An e2e test drives a real readable MP4 to `VideoAccepted` and a non-video file to `VideoRejected` with `FORMATO_INVALIDO`
-- [ ] Full gate passes: `npm test && npm run test:e2e`
-- [ ] Test count: at least 4 new tests pass (no silent deletions)
+- [x] The production factory binds `VIDEO_VALIDATOR` to the FFprobe implementation
+- [x] `AcceptAllVideoValidator` remains in the tree as a test double and is never bound by the production factory
+- [x] The composition e2e test from T7 is extended to assert which validator the root selects
+- [x] An e2e test drives a real readable MP4 to `VideoAccepted` and a non-video file to `VideoRejected` with `FORMATO_INVALIDO`
+- [x] Full gate passes: `npm test && npm run test:e2e`
+- [x] Test count: at least 4 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: e2e
 **Gate**: full
 
