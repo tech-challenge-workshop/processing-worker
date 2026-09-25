@@ -15,7 +15,7 @@ import { InMemoryObjectStorage } from './../src/storage/in-memory-object-storage
 import { OBJECT_STORAGE } from './../src/storage/object-storage.interface';
 
 // The source key the DTOs below name holds a real MP4, so the real FFprobe
-// validator the root binds accepts it.
+// validator accepts it and the real media packager extracts it.
 const SAMPLE = join(__dirname, 'fixtures', 'sample-8s.mp4');
 
 describe('Local Docker Integration (e2e)', () => {

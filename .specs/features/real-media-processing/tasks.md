@@ -473,14 +473,15 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] The production factory binds `FRAME_PACKAGER` to the media implementation
-- [ ] `DeterministicFramePackager` remains as a test double and as the single definition of the key format, and is never bound by the production factory
-- [ ] The composition e2e test is extended to assert which packager the root selects
-- [ ] An e2e test drives a real MP4 from `ProcessingQueued` to `ProcessingCompleted`, and the stored archive holds one entry per second of video
-- [ ] `ProcessingStarted` is asserted to be published before extraction begins
-- [ ] Full gate passes: `npm test && npm run test:e2e`
-- [ ] Test count: at least 4 new tests pass (no silent deletions)
+- [x] The production factory binds `FRAME_PACKAGER` to the media implementation
+- [x] `DeterministicFramePackager` remains as a test double and as the single definition of the key format, and is never bound by the production factory
+- [x] The composition e2e test is extended to assert which packager the root selects
+- [x] An e2e test drives a real MP4 from `ProcessingQueued` to `ProcessingCompleted`, and the stored archive holds one entry per second of video
+- [x] `ProcessingStarted` is asserted to be published before extraction begins
+- [x] Full gate passes: `npm test && npm run test:e2e`
+- [x] Test count: at least 4 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: e2e
 **Gate**: full
 

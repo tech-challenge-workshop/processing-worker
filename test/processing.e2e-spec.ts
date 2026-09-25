@@ -6,11 +6,25 @@ import { FakeEventPublisher } from './../src/messaging/fake-event-publisher';
 import { InMemoryDuplicateChecker } from './../src/validation/in-memory-duplicate-checker';
 import { ProcessingQueuedDto } from './../src/messaging/dto/processing-queued.dto';
 import { EVENT_ROUTES } from './../src/messaging/event-routes';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { zipEntries } from './support/zip-entries';
+import { InMemoryObjectStorage } from './../src/storage/in-memory-object-storage';
+import { OBJECT_STORAGE } from './../src/storage/object-storage.interface';
+import { FfmpegFrameExtractor } from './../src/media/ffmpeg-frame-extractor';
+import type { WorkerEvent } from './../src/messaging/event-publisher.interface';
+import type { WorkerEventType } from './../src/messaging/event-routes';
+
+// The source key the DTO names holds the real 8-second MP4, and the root
+// binds the real media packager: ffmpeg and archiver run for every job here.
+const SAMPLE = join(__dirname, 'fixtures', 'sample-8s.mp4');
 
 describe('Processing flow (e2e)', () => {
   let consumer: ProcessingConsumer;
   let publisher: FakeEventPublisher;
   let duplicateChecker: InMemoryDuplicateChecker;
+  let storage: InMemoryObjectStorage;
 
   const UUID_V4_REGEX =
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -27,6 +41,8 @@ describe('Processing flow (e2e)', () => {
   beforeEach(async () => {
     publisher = new FakeEventPublisher();
     duplicateChecker = new InMemoryDuplicateChecker();
+    storage = new InMemoryObjectStorage();
+    await storage.upload(dto.sourceStorageKey, SAMPLE, 'video/mp4');
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -35,9 +51,73 @@ describe('Processing flow (e2e)', () => {
       .useValue(publisher)
       .overrideProvider('DUPLICATE_CHECKER')
       .useValue(duplicateChecker)
+      .overrideProvider(OBJECT_STORAGE)
+      .useValue(storage)
       .compile();
 
     consumer = moduleFixture.get<ProcessingConsumer>(ProcessingConsumer);
+  });
+
+  const storedArchive = async (key: string): Promise<Buffer> => {
+    const scratch = mkdtempSync(join(tmpdir(), 'fiapx-processing-e2e-'));
+    try {
+      await storage.download(key, join(scratch, 'frames.zip'));
+      return readFileSync(join(scratch, 'frames.zip'));
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  };
+
+  it('drives a real MP4 to ProcessingCompleted with an archive of one entry per second at the announced key', async () => {
+    await consumer.handleProcessingQueued(dto);
+
+    expect(publisher.publishedTypes).toEqual([
+      'ProcessingStarted',
+      'ProcessingCompleted',
+    ]);
+    const completed = publisher.publishedEvents[1] as ProcessingCompletedDto;
+    const entries = zipEntries(await storedArchive(completed.zipStorageKey));
+    expect(entries.map((e) => e.name).sort()).toEqual(
+      [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `frame-0000${n}.jpg`),
+    );
+    expect(storage.keys().sort()).toEqual(
+      [dto.sourceStorageKey, completed.zipStorageKey].sort(),
+    );
+  });
+
+  it('publishes ProcessingStarted before extraction begins', async () => {
+    const order: string[] = [];
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider('EVENT_PUBLISHER')
+      .useValue({
+        publish: (type: WorkerEventType, event: WorkerEvent) => {
+          order.push(`publish ${type}`);
+          return publisher.publish(type, event);
+        },
+      })
+      .overrideProvider('DUPLICATE_CHECKER')
+      .useValue(duplicateChecker)
+      .overrideProvider(OBJECT_STORAGE)
+      .useValue(storage)
+      .compile();
+    const real = moduleFixture.get(FfmpegFrameExtractor);
+    const extract = real.extract.bind(real);
+    jest.spyOn(real, 'extract').mockImplementation((source, dir) => {
+      order.push('extract');
+      return extract(source, dir);
+    });
+
+    await moduleFixture
+      .get<ProcessingConsumer>(ProcessingConsumer)
+      .handleProcessingQueued(dto);
+
+    expect(order).toEqual([
+      'publish ProcessingStarted',
+      'extract',
+      'publish ProcessingCompleted',
+    ]);
   });
 
   it('publishes ProcessingCompleted when a valid processing message is consumed', async () => {
