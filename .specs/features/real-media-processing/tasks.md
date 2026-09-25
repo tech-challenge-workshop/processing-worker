@@ -301,14 +301,15 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Invokes `ffprobe -v error -print_format json -show_format -show_streams <path>` and parses `format.format_name`, `format.duration` and `streams[].codec_type`
-- [ ] Returns `{ readable: false }` when FFprobe exits non-zero, times out, or emits output that is not JSON
-- [ ] An MP4 container with no video stream yields `hasVideoStream: false` rather than being treated as readable
-- [ ] A missing duration is absent rather than defaulted to zero, so the caller decides what that means
-- [ ] The argument vector is asserted, not only the parsed result
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 6 new tests pass (no silent deletions)
+- [x] Invokes `ffprobe -v error -print_format json -show_format -show_streams <path>` and parses `format.format_name`, `format.duration` and `streams[].codec_type`
+- [x] Returns `{ readable: false }` when FFprobe exits non-zero, times out, or emits output that is not JSON
+- [x] An MP4 container with no video stream yields `hasVideoStream: false` rather than being treated as readable
+- [x] A missing duration is absent rather than defaulted to zero, so the caller decides what that means
+- [x] The argument vector is asserted, not only the parsed result
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 6 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 

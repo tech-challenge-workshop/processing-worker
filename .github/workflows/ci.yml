@@ -20,6 +20,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # FFprobe and FFmpeg run for real in the media tests; they fail rather
+      # than skip without them, so the binaries are installed, not optional.
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
