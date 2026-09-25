@@ -187,12 +187,12 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 | RM-10 | P2: Extraction that produces a ZIP | Execute (T11) | Implementing |
 | RM-11 | P2: Extraction that produces a ZIP | Execute (T12, T13, T14, T20) | Implementing |
 | RM-12 | P3: Failure that is honest and terminal | Execute (T2, T16) | Implementing |
-| RM-13 | P4: A redelivery costs nothing | Execute (T13) | Implementing |
+| RM-13 | P4: A redelivery costs nothing | Execute (T13, T17) | Implementing |
 | RM-14 | P5: Bounded work in flight | Execute (T15) | Implementing |
 | RM-15 | P2: Extraction that produces a ZIP | Execute (T11) | Implementing |
-| RM-16 | P3: Failure that is honest and terminal | Execute (T3, T13, T16) | Implementing |
+| RM-16 | P3: Failure that is honest and terminal | Execute (T3, T13, T16, T17) | Implementing |
 | RM-17 | P3: Failure that is honest and terminal | Execute (T1, T4) | Implementing |
-| RM-18 | P4: A redelivery costs nothing | Execute (T18) | Implementing |
+| RM-18 | P4: A redelivery costs nothing | Execute (T18, T17) | Implementing |
 | RM-20 | P3: Failure that is honest and terminal | Execute (T19) | Implementing |
 
 `RM-19` belongs to `fiap-x-platform` (the smoke's rejection path), which is why this service's range skips it.
