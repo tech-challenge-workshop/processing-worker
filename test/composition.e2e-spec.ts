@@ -10,6 +10,10 @@ import {
   ObjectStorage,
 } from './../src/storage/object-storage.interface';
 import { S3ObjectStorage } from './../src/storage/s3-object-storage';
+import { AcceptAllVideoValidator } from './../src/validation/accept-all-video-validator';
+import { FfprobeVideoValidator } from './../src/validation/ffprobe-video-validator';
+import { ValidationConsumer } from './../src/validation/validation.consumer';
+import { VIDEO_VALIDATOR } from './../src/validation/video-validator.interface';
 
 // Asserts what the composition root actually selects. The Catalog once
 // shipped a complete persistence layer that app.module.ts never referenced,
@@ -97,5 +101,37 @@ describe('Composition root: object storage selection (e2e)', () => {
 
     expect(withoutCredentials.body).toMatchObject({ storage: 'in-memory' });
     expect(withCredentials.body).toMatchObject({ storage: 's3' });
+  });
+});
+
+describe('Composition root: media implementations (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeEach(async () => {
+    const moduleFixture = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('binds VIDEO_VALIDATOR to the FFprobe validator, never the accept-all double', () => {
+    const validator = app.get<unknown>(VIDEO_VALIDATOR);
+
+    expect(validator).toBeInstanceOf(FfprobeVideoValidator);
+    expect(validator).not.toBeInstanceOf(AcceptAllVideoValidator);
+  });
+
+  it('hands the consumer the FFprobe validator and the root storage adapter', () => {
+    const consumer = app.get<unknown>(ValidationConsumer) as {
+      validator: { storage: unknown };
+    };
+
+    expect(consumer.validator).toBeInstanceOf(FfprobeVideoValidator);
+    expect(consumer.validator.storage).toBe(app.get(OBJECT_STORAGE));
   });
 });

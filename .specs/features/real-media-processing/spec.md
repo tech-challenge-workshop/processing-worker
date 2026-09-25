@@ -181,7 +181,7 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| RM-07 | P1: Validation that opens the file | Execute (T8, T9) | Implementing |
+| RM-07 | P1: Validation that opens the file | Execute (T8, T9, T10) | Implementing |
 | RM-08 | P1: Validation that opens the file | Execute (T9) | Implementing |
 | RM-09 | P2: Extraction that produces a ZIP | Execute (T5, T6, T7) | Implementing |
 | RM-10 | P2: Extraction that produces a ZIP | Design | Pending |
