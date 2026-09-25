@@ -5,6 +5,16 @@ import { ProcessingCompletedDto } from '../messaging/dto/processing-completed.dt
 import { DeterministicFramePackager } from './deterministic-frame-packager';
 import { ProcessingQueuedDto } from '../messaging/dto/processing-queued.dto';
 import { InMemoryDuplicateChecker } from '../validation/in-memory-duplicate-checker';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { ChildProcessError } from '../media/child-process.runner';
+import { FfmpegFrameExtractor } from '../media/ffmpeg-frame-extractor';
+import { TempWorkspace, WorkspaceOwner } from '../media/temp-workspace';
+import { ZipBuilder } from '../media/zip-builder';
+import { InMemoryObjectStorage } from '../storage/in-memory-object-storage';
+import { frameArchiveKey } from './deterministic-frame-packager';
+import { MediaFramePackager } from './media-frame-packager';
 import {
   ProcessingConsumer,
   ProcessingRejectedError,
@@ -254,5 +264,193 @@ describe('ProcessingConsumer', () => {
       (type) => type === 'ProcessingCompleted' || type === 'ProcessingFailed',
     );
     expect(outcomes).toHaveLength(1);
+  });
+
+  // RM-12, RM-16: the real media packager, driven through the consumer, with
+  // one stage failing at a time. Storage is in memory so what was stored is
+  // observable; the extractor is a stand-in that writes frames the way FFmpeg
+  // does, so no binary is needed to reach every stage.
+  describe('with the media packager, when a stage fails', () => {
+    class FlakyStorage extends InMemoryObjectStorage {
+      failDownload?: Error;
+      failUpload?: Error;
+      download(key: string, destinationPath: string): Promise<void> {
+        return this.failDownload
+          ? Promise.reject(this.failDownload)
+          : super.download(key, destinationPath);
+      }
+      upload(key: string, sourcePath: string, type: string): Promise<void> {
+        return this.failUpload && key !== SOURCE_KEY
+          ? Promise.reject(this.failUpload)
+          : super.upload(key, sourcePath, type);
+      }
+    }
+
+    class RecordingWorkspace extends TempWorkspace {
+      dirs: string[] = [];
+      withWorkspace<T>(
+        owner: WorkspaceOwner,
+        work: (dir: string) => Promise<T>,
+      ): Promise<T> {
+        return super.withWorkspace(owner, (dir) => {
+          this.dirs.push(dir);
+          return work(dir);
+        });
+      }
+    }
+
+    const SOURCE_KEY = 's3://bucket/key';
+    let storage: FlakyStorage;
+    let workspace: RecordingWorkspace;
+    let extract: jest.Mock<Promise<string[]>, [string, string]>;
+    let scratch: string;
+
+    /** Writes `count` frames the way FFmpeg names them. */
+    const writeFrames = (dir: string, count: number): string[] =>
+      Array.from({ length: count }, (_, i) => {
+        const path = join(dir, `frame-${String(i + 1).padStart(5, '0')}.jpg`);
+        writeFileSync(path, `jpeg ${i + 1}`);
+        return path;
+      });
+
+    const mediaConsumer = async (): Promise<ProcessingConsumer> => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ProcessingConsumer,
+          { provide: 'DUPLICATE_CHECKER', useValue: duplicateChecker },
+          { provide: 'EVENT_PUBLISHER', useValue: publisher },
+          {
+            provide: 'FRAME_PACKAGER',
+            useValue: new MediaFramePackager(
+              storage,
+              { extract } as unknown as FfmpegFrameExtractor,
+              new ZipBuilder(),
+              workspace,
+            ),
+          },
+        ],
+      }).compile();
+      return module.get<ProcessingConsumer>(ProcessingConsumer);
+    };
+
+    beforeEach(async () => {
+      scratch = mkdtempSync(join(tmpdir(), 'fiapx-consumer-spec-'));
+      const source = join(scratch, 'source.mp4');
+      writeFileSync(source, 'video bytes');
+      storage = new FlakyStorage();
+      await storage.upload(SOURCE_KEY, source, 'video/mp4');
+      workspace = new RecordingWorkspace();
+      extract = jest.fn((_source: string, dir: string) =>
+        Promise.resolve(writeFrames(dir, 3)),
+      );
+    });
+
+    afterEach(() => rmSync(scratch, { recursive: true, force: true }));
+
+    const failures: [string, () => void][] = [
+      [
+        'FFmpeg exits non-zero after writing some frames',
+        () =>
+          extract.mockImplementation((_source, dir) => {
+            writeFrames(dir, 2);
+            return Promise.reject(
+              new ChildProcessError(
+                'ffmpeg exited with code 1',
+                'ffmpeg',
+                1,
+                null,
+                'Invalid data found when processing input',
+                false,
+              ),
+            );
+          }),
+      ],
+      [
+        'FFmpeg is killed after its timeout',
+        () =>
+          extract.mockRejectedValue(
+            new ChildProcessError(
+              'ffmpeg timed out after 600000 ms',
+              'ffmpeg',
+              null,
+              'SIGKILL',
+              '',
+              true,
+            ),
+          ),
+      ],
+      [
+        'storage is unreachable while reading the source',
+        () => {
+          storage.failDownload = new Error('connect ECONNREFUSED minio:9000');
+        },
+      ],
+      [
+        'the archive cannot be written to storage',
+        () => {
+          storage.failUpload = new Error('connect ECONNREFUSED minio:9000');
+        },
+      ],
+    ];
+
+    it.each(failures)(
+      'when %s: publishes exactly one ProcessingFailed with PROCESSAMENTO_FALHOU and stores nothing',
+      async (_stage, inject) => {
+        inject();
+        const consumer = await mediaConsumer();
+
+        await consumer.handleProcessingQueued(createDto());
+
+        expect(publisher.publishedTypes).toEqual([
+          'ProcessingStarted',
+          'ProcessingFailed',
+        ]);
+        expect(publisher.published[1].event).toMatchObject({
+          processingRequestId: 'req-1',
+          attemptId: 'attempt-1',
+          failureCode: 'PROCESSAMENTO_FALHOU',
+        });
+        // Nothing was stored, partial or otherwise: only the source remains.
+        expect(storage.keys()).toEqual([SOURCE_KEY]);
+        expect(
+          await storage.head(frameArchiveKey(createDto())),
+        ).toBeUndefined();
+        expect(workspace.dirs).toHaveLength(1);
+        expect(existsSync(workspace.dirs[0])).toBe(false);
+      },
+    );
+
+    it('starts no second business attempt for a failed job: one extraction, acknowledged, not requeued', async () => {
+      failures[0][1]();
+      const consumer = await mediaConsumer();
+      const first = createContext();
+      const redelivery = createContext();
+
+      await consumer.handleProcessingQueued(createDto(), first.ctx);
+      await consumer.handleProcessingQueued(createDto(), redelivery.ctx);
+
+      expect(extract).toHaveBeenCalledTimes(1);
+      expect(first.ack).toHaveBeenCalledTimes(1);
+      expect(first.nack).not.toHaveBeenCalled();
+      expect(redelivery.nack).not.toHaveBeenCalled();
+      expect(publisher.publishedTypes).toEqual([
+        'ProcessingStarted',
+        'ProcessingFailed',
+      ]);
+    });
+
+    it('publishes exactly one ProcessingCompleted, and no ProcessingFailed, when no stage fails', async () => {
+      const consumer = await mediaConsumer();
+
+      await consumer.handleProcessingQueued(createDto());
+
+      expect(publisher.publishedTypes).toEqual([
+        'ProcessingStarted',
+        'ProcessingCompleted',
+      ]);
+      expect(storage.keys().sort()).toEqual(
+        [SOURCE_KEY, frameArchiveKey(createDto())].sort(),
+      );
+    });
   });
 });

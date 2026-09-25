@@ -531,13 +531,14 @@ T20 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Any packager failure yields exactly one `ProcessingFailed` carrying `PROCESSAMENTO_FALHOU`
-- [ ] No second business attempt is started for a failed job
-- [ ] Exactly one of `ProcessingCompleted` or `ProcessingFailed` is published per job, on every path
-- [ ] A storage failure and an extraction failure are both covered, and neither leaves a stored object
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 5 new tests pass (no silent deletions)
+- [x] Any packager failure yields exactly one `ProcessingFailed` carrying `PROCESSAMENTO_FALHOU`
+- [x] No second business attempt is started for a failed job
+- [x] Exactly one of `ProcessingCompleted` or `ProcessingFailed` is published per job, on every path
+- [x] A storage failure and an extraction failure are both covered, and neither leaves a stored object
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 5 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 
