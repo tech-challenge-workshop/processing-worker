@@ -8,6 +8,7 @@ import { InMemoryDuplicateChecker } from './in-memory-duplicate-checker';
 import { FakeEventPublisher } from '../messaging/fake-event-publisher';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
 import { AcceptAllVideoValidator } from './accept-all-video-validator';
+import { outcomeEventId } from '../messaging/outcome-event-id';
 import type {
   FailureCode,
   ValidationOutcome,
@@ -26,8 +27,9 @@ describe('ValidationConsumer', () => {
   let publisher: FakeEventPublisher;
   let duplicateChecker: InMemoryDuplicateChecker;
 
-  const UUID_V4_REGEX =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  // RM-18: an outcome's id is a v5 UUID derived from the consumed event.
+  const UUID_V5_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
   const createDto = (
     overrides?: Partial<VideoValidationRequestedDto>,
@@ -80,7 +82,8 @@ describe('ValidationConsumer', () => {
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.occurredAt).toBe(dto.occurredAt);
     expect(event.eventId).not.toBe(dto.eventId);
-    expect(event.eventId).toMatch(UUID_V4_REGEX);
+    expect(event.eventId).toMatch(UUID_V5_REGEX);
+    expect(event.eventId).toBe(outcomeEventId(dto.eventId, 'VideoAccepted'));
   });
 
   it('does not publish when processingRequestId is missing', async () => {
@@ -195,15 +198,16 @@ describe('ValidationConsumer', () => {
       },
     );
 
-    it('generates a fresh well-formed eventId for the rejection', async () => {
+    it('derives the rejection eventId from the consumed event and the outcome', async () => {
       const rejecting = await rejectingConsumer('FORMATO_INVALIDO');
       const { ctx } = createContext();
 
       await rejecting.handleVideoValidationRequested(createDto(), ctx);
 
       const event = publisher.published[0].event as { eventId: string };
-      expect(event.eventId).toMatch(UUID_V4_REGEX);
+      expect(event.eventId).toMatch(UUID_V5_REGEX);
       expect(event.eventId).not.toBe('evt-1');
+      expect(event.eventId).toBe(outcomeEventId('evt-1', 'VideoRejected'));
     });
 
     it('does not acknowledge when the rejection fails to publish', async () => {
@@ -236,5 +240,51 @@ describe('ValidationConsumer', () => {
     await consumer.handleVideoValidationRequested(createDto(), ctx);
 
     expect(publisher.publishedTypes).toEqual(['VideoAccepted']);
+  });
+
+  // RM-18: a redelivery reaches a replica (or a restarted process) that has
+  // not seen the message, so each consumption below has its own duplicate
+  // checker. The republished outcome must carry the id the first one did, or
+  // the Catalog's eventId deduplication cannot recognise it.
+  describe('when the same message is consumed twice', () => {
+    const replica = async (
+      validator: VideoValidator,
+    ): Promise<ValidationConsumer> => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ValidationConsumer,
+          {
+            provide: 'DUPLICATE_CHECKER',
+            useValue: new InMemoryDuplicateChecker(),
+          },
+          { provide: 'EVENT_PUBLISHER', useValue: publisher },
+          { provide: 'VIDEO_VALIDATOR', useValue: validator },
+        ],
+      }).compile();
+      return module.get<ValidationConsumer>(ValidationConsumer);
+    };
+
+    it.each<[string, VideoValidator]>([
+      ['VideoAccepted', new AcceptAllVideoValidator()],
+      [
+        'VideoRejected',
+        new StubValidator({ accepted: false, failureCode: 'FORMATO_INVALIDO' }),
+      ],
+    ])(
+      'publishes %s under the same eventId both times',
+      async (type, validator) => {
+        await (
+          await replica(validator)
+        ).handleVideoValidationRequested(createDto());
+        await (
+          await replica(validator)
+        ).handleVideoValidationRequested(createDto());
+
+        expect(publisher.publishedTypes).toEqual([type, type]);
+        const [first, second] = publisher.publishedEvents;
+        expect(second.eventId).toBe(first.eventId);
+        expect(second).toEqual(first);
+      },
+    );
   });
 });

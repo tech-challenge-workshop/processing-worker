@@ -584,13 +584,14 @@ T20 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] `outcomeEventId` returns a v5-formatted UUID, the same for the same inputs and different for a different consumed id or a different outcome
-- [ ] No `randomUUID()` remains on any outcome publication path in either consumer
-- [ ] `ProcessingStarted` and `ProcessingCompleted` for the same job carry different ids
-- [ ] Consumer tests assert that consuming the same message twice publishes the same `eventId` both times, for every outcome type
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 5 new tests pass (no silent deletions)
+- [x] `outcomeEventId` returns a v5-formatted UUID, the same for the same inputs and different for a different consumed id or a different outcome
+- [x] No `randomUUID()` remains on any outcome publication path in either consumer
+- [x] `ProcessingStarted` and `ProcessingCompleted` for the same job carry different ids
+- [x] Consumer tests assert that consuming the same message twice publishes the same `eventId` both times, for every outcome type
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 5 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 

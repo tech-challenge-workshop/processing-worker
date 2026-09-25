@@ -14,6 +14,7 @@ import {
   OBJECT_STORAGE,
   ObjectHead,
 } from './../src/storage/object-storage.interface';
+import { outcomeEventId } from './../src/messaging/outcome-event-id';
 
 const SAMPLE = join(__dirname, 'fixtures', 'sample-8s.mp4');
 
@@ -27,8 +28,9 @@ describe('Validation flow (e2e)', () => {
   let storage: InMemoryObjectStorage;
   let scratch: string;
 
-  const UUID_V4_REGEX =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  // RM-18: an outcome's id is a v5 UUID derived from the consumed event.
+  const UUID_V5_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
   const dto: VideoValidationRequestedDto = {
     eventId: 'evt-1',
@@ -77,7 +79,8 @@ describe('Validation flow (e2e)', () => {
     const event = publisher.publishedEvents[0];
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.eventId).not.toBe(dto.eventId);
-    expect(event.eventId).toMatch(UUID_V4_REGEX);
+    expect(event.eventId).toMatch(UUID_V5_REGEX);
+    expect(event.eventId).toBe(outcomeEventId(dto.eventId, 'VideoAccepted'));
   });
 
   it('does not publish a second VideoAccepted for a duplicate eventId', async () => {

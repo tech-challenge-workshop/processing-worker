@@ -1,7 +1,7 @@
 import { Controller, Inject, Injectable } from '@nestjs/common';
 import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
-import { randomUUID } from 'crypto';
 import type { EventPublisher } from '../messaging/event-publisher.interface';
+import { outcomeEventId } from '../messaging/outcome-event-id';
 import { ProcessingCompletedDto } from '../messaging/dto/processing-completed.dto';
 import { ProcessingQueuedDto } from '../messaging/dto/processing-queued.dto';
 import { ProcessingStartedDto } from '../messaging/dto/processing-started.dto';
@@ -78,7 +78,7 @@ export class ProcessingConsumer {
     }
 
     const started: ProcessingStartedDto = {
-      eventId: randomUUID(),
+      eventId: outcomeEventId(dto.eventId, 'ProcessingStarted'),
       processingRequestId: dto.processingRequestId,
       attemptId: dto.attemptId,
       occurredAt: new Date().toISOString(),
@@ -99,7 +99,7 @@ export class ProcessingConsumer {
       zipStorageKey = await this.framePackager.packageFrames(dto);
     } catch {
       const failed: ProcessingFailedDto = {
-        eventId: randomUUID(),
+        eventId: outcomeEventId(dto.eventId, 'ProcessingFailed'),
         processingRequestId: dto.processingRequestId,
         attemptId: dto.attemptId,
         failureCode: 'PROCESSAMENTO_FALHOU',
@@ -119,7 +119,7 @@ export class ProcessingConsumer {
     }
 
     const completed: ProcessingCompletedDto = {
-      eventId: randomUUID(),
+      eventId: outcomeEventId(dto.eventId, 'ProcessingCompleted'),
       processingRequestId: dto.processingRequestId,
       attemptId: dto.attemptId,
       zipStorageKey,
