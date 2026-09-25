@@ -24,7 +24,7 @@ describe('RabbitmqEventPublisher', () => {
     eventId: 'completed-1',
     processingRequestId: 'req-1',
     attemptId: 'attempt-1',
-    zipStorageKey: 'local/req-1/attempt-1/frames.zip',
+    zipStorageKey: 'zips/req-1/attempt-1/frames.zip',
     occurredAt: '2026-08-27T00:00:00Z',
   };
 

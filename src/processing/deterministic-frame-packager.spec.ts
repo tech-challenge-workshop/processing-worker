@@ -14,7 +14,7 @@ describe('DeterministicFramePackager', () => {
 
   it('derives the key from the request and the attempt', async () => {
     await expect(packager.packageFrames(job)).resolves.toBe(
-      'local/req-1/attempt-1/frames.zip',
+      'zips/req-1/attempt-1/frames.zip',
     );
   });
 
@@ -31,6 +31,6 @@ describe('DeterministicFramePackager', () => {
       attemptId: 'attempt-2',
     });
 
-    expect(other).toBe('local/req-1/attempt-2/frames.zip');
+    expect(other).toBe('zips/req-1/attempt-2/frames.zip');
   });
 });

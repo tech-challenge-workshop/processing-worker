@@ -644,12 +644,13 @@ On the same broker: both consumers reported `ack_required=true` with `prefetch_c
 - Skill: NONE
 
 **Done when**:
-- [ ] `frameArchiveKey` returns `zips/<processingRequestId>/<attemptId>/frames.zip`, and it remains the only place the format is written
-- [ ] Every test that asserted a `local/` key asserts the `zips/` key instead - the expected value changes because the spec'd location changed; no assertion is loosened to a pattern
-- [ ] No `local/` archive key remains in `src/` or `test/`
-- [ ] Quick gate passes: `npm test` (in the FFmpeg container)
-- [ ] Test count unchanged or higher (no silent deletions)
+- [x] `frameArchiveKey` returns `zips/<processingRequestId>/<attemptId>/frames.zip`, and it remains the only place the format is written
+- [x] Every test that asserted a `local/` key asserts the `zips/` key instead - the expected value changes because the spec'd location changed; no assertion is loosened to a pattern
+- [x] No `local/` archive key remains in `src/` or `test/`
+- [x] Quick gate passes: `npm test` (in the FFmpeg container)
+- [x] Test count unchanged or higher (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 

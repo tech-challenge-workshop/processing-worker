@@ -96,7 +96,7 @@ describe('ProcessingConsumer', () => {
       outcomeEventId(dto.eventId, 'ProcessingCompleted'),
     );
     expect(event.zipStorageKey).toBe(
-      `local/${dto.processingRequestId}/${dto.attemptId}/frames.zip`,
+      `zips/${dto.processingRequestId}/${dto.attemptId}/frames.zip`,
     );
   });
 
