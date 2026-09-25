@@ -329,15 +329,16 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Checks the reported size from `head` **before** downloading, so an oversized object is rejected without transfer
-- [ ] An absent source object yields `FORMATO_INVALIDO` and the probe is not retried
-- [ ] Duration above 600 s yields `DURACAO_EXCEDIDA`; size above 500 MB yields `FORMATO_INVALIDO`; a container outside the MP4/MOV family, a missing video stream, an unreadable file and a probe timeout all yield `FORMATO_INVALIDO`
-- [ ] A zero-length object yields `FORMATO_INVALIDO`
-- [ ] Exactly one outcome is produced per call, and the temp workspace is gone afterwards on every path
-- [ ] Tests map 1:1 to the RM-07 and RM-08 acceptance criteria, and cover every listed edge case
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 10 new tests pass (no silent deletions)
+- [x] Checks the reported size from `head` **before** downloading, so an oversized object is rejected without transfer
+- [x] An absent source object yields `FORMATO_INVALIDO` and the probe is not retried
+- [x] Duration above 600 s yields `DURACAO_EXCEDIDA`; size above 500 MB yields `FORMATO_INVALIDO`; a container outside the MP4/MOV family, a missing video stream, an unreadable file and a probe timeout all yield `FORMATO_INVALIDO`
+- [x] A zero-length object yields `FORMATO_INVALIDO`
+- [x] Exactly one outcome is produced per call, and the temp workspace is gone afterwards on every path
+- [x] Tests map 1:1 to the RM-07 and RM-08 acceptance criteria, and cover every listed edge case
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 10 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 
