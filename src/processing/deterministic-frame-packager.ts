@@ -18,7 +18,7 @@ export function frameArchiveKey(
  *
  * The key is derived from processingRequestId and attemptId, so a technical
  * redelivery addresses the same object rather than creating a second one.
- * S4 replaces this with real frame extraction.
+ * Kept as a test double; MediaFramePackager is what production binds.
  */
 @Injectable()
 export class DeterministicFramePackager implements FramePackager {

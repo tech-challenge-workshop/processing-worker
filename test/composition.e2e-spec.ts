@@ -10,6 +10,10 @@ import {
   ObjectStorage,
 } from './../src/storage/object-storage.interface';
 import { S3ObjectStorage } from './../src/storage/s3-object-storage';
+import { DeterministicFramePackager } from './../src/processing/deterministic-frame-packager';
+import { FRAME_PACKAGER } from './../src/processing/frame-packager.interface';
+import { MediaFramePackager } from './../src/processing/media-frame-packager';
+import { ProcessingConsumer } from './../src/processing/processing.consumer';
 import { AcceptAllVideoValidator } from './../src/validation/accept-all-video-validator';
 import { FfprobeVideoValidator } from './../src/validation/ffprobe-video-validator';
 import { ValidationConsumer } from './../src/validation/validation.consumer';
@@ -133,5 +137,21 @@ describe('Composition root: media implementations (e2e)', () => {
 
     expect(consumer.validator).toBeInstanceOf(FfprobeVideoValidator);
     expect(consumer.validator.storage).toBe(app.get(OBJECT_STORAGE));
+  });
+
+  it('binds FRAME_PACKAGER to the media packager, never the deterministic double', () => {
+    const packager = app.get<unknown>(FRAME_PACKAGER);
+
+    expect(packager).toBeInstanceOf(MediaFramePackager);
+    expect(packager).not.toBeInstanceOf(DeterministicFramePackager);
+  });
+
+  it('hands the processing consumer the media packager and the root storage adapter', () => {
+    const consumer = app.get<unknown>(ProcessingConsumer) as {
+      framePackager: { storage: unknown };
+    };
+
+    expect(consumer.framePackager).toBeInstanceOf(MediaFramePackager);
+    expect(consumer.framePackager.storage).toBe(app.get(OBJECT_STORAGE));
   });
 });
