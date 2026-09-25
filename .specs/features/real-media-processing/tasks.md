@@ -504,13 +504,14 @@ T20 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Both consumed queues receive a finite `prefetchCount` from configuration, defaulting to 20 for validation and 1 for processing
-- [ ] No queue is consumed with an unlimited prefetch - Nest's default of `0` means unlimited, which hides queue depth from the autoscaler S8 will read
-- [ ] The documented defaults are applied when configuration is absent, rather than falling through to the transport default
-- [ ] `broker-topology.spec.ts` still passes: `prefetchCount` is a consumer setting on the channel, not a queue argument, so it must not have become a topology change (AD-011)
-- [ ] Full gate passes: `npm test && npm run test:e2e`
-- [ ] Test count: at least 3 new tests pass (no silent deletions)
+- [x] Both consumed queues receive a finite `prefetchCount` from configuration, defaulting to 20 for validation and 1 for processing
+- [x] No queue is consumed with an unlimited prefetch - Nest's default of `0` means unlimited, which hides queue depth from the autoscaler S8 will read
+- [x] The documented defaults are applied when configuration is absent, rather than falling through to the transport default
+- [x] `broker-topology.spec.ts` still passes: `prefetchCount` is a consumer setting on the channel, not a queue argument, so it must not have become a topology change (AD-011)
+- [x] Full gate passes: `npm test && npm run test:e2e`
+- [x] Test count: at least 3 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: e2e
 **Gate**: full
 
