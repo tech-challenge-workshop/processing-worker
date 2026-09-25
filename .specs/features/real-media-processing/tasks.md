@@ -558,13 +558,16 @@ T20 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Publishing the same `ProcessingQueued` twice yields one stored object, one extraction, and two `ProcessingCompleted` events identical down to their `eventId`
-- [ ] A redelivered validation job yields the same outcome it yielded the first time
-- [ ] The system temp directory holds no leftover job directory after a successful job, a failed job, and a job killed by a timeout
-- [ ] The suite fails if the packager is replaced by one that stores nothing - verified by actually making that substitution, not by assuming
-- [ ] Build gate passes: `npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run build`
-- [ ] Test count: at least 6 new tests pass (no silent deletions)
+- [x] Publishing the same `ProcessingQueued` twice yields one stored object, one extraction, and two `ProcessingCompleted` events identical down to their `eventId`
+- [x] A redelivered validation job yields the same outcome it yielded the first time
+- [x] The system temp directory holds no leftover job directory after a successful job, a failed job, and a job killed by a timeout
+- [x] The suite fails if the packager is replaced by one that stores nothing - verified by actually making that substitution, not by assuming
+- [x] Build gate passes: `npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run build`
+- [x] Test count: at least 6 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
+
+**Evidence (substitution, 2026-09-25)**: in a throwaway container copy of the tree, `processing.module.ts` was changed to bind `DeterministicFramePackager`, which stores nothing, as `FRAME_PACKAGER`. 5 of the suite's 7 tests failed: both processing-redelivery tests and all three cleanup tests. The 2 validation-redelivery tests passed, since they never reach the packager. The real tree was never modified. A redelivery is modelled as delivery to a process that has not seen the message, either another replica or this one after a restart, so each delivery boots its own `AppModule` and duplicate checker and shares only storage and the publisher. The in-process `InMemoryDuplicateChecker` is volatile by design, so it cannot be what makes a redelivery safe. "Identical down to their `eventId`" is asserted on every field except `occurredAt`, which the consumer stamps at publication time. Found while writing the suite: archiver writes entries in a physical order that varies between runs, so the archive test orders entry names lexically, as RM-11 AC5 specifies.
 **Tests**: e2e
 **Gate**: build
 
