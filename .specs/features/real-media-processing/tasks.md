@@ -135,14 +135,15 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Uses `spawn` with an argument vector, never `exec` - a storage key containing a quote must not reach a shell
-- [ ] A command exiting 0 resolves with its stdout and stderr
-- [ ] A command exiting non-zero rejects with an error carrying the exit code and the captured stderr
-- [ ] A command that outlives `timeoutMs` is sent `SIGTERM` then `SIGKILL`, and the rejection names the timeout as the cause
-- [ ] Tested against real short-lived commands, not a mocked `child_process`
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 5 new tests pass (no silent deletions)
+- [x] Uses `spawn` with an argument vector, never `exec` - a storage key containing a quote must not reach a shell
+- [x] A command exiting 0 resolves with its stdout and stderr
+- [x] A command exiting non-zero rejects with an error carrying the exit code and the captured stderr
+- [x] A command that outlives `timeoutMs` is sent `SIGTERM` then `SIGKILL`, and the rejection names the timeout as the cause
+- [x] Tested against real short-lived commands, not a mocked `child_process`
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 5 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 
