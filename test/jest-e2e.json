@@ -5,6 +5,13 @@
   "testRegex": ".e2e-spec.ts$",
   "testPathIgnorePatterns": ["/node_modules/", "\\.\\_"],
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
+    "^.+\\.ts$": "ts-jest",
+    "^.+\\.js$": [
+      "ts-jest",
+      { "tsconfig": { "allowJs": true, "module": "commonjs", "isolatedModules": true } }
+    ]
+  },
+  "transformIgnorePatterns": [
+    "/node_modules/(?!(archiver|zip-stream|compress-commons|crc32-stream|is-stream)/)"
+  ]
 }

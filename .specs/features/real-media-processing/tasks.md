@@ -416,14 +416,15 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Created with `{ zlib: { level: 0 } }` - JPEG does not compress, so any level above zero is CPU spent for nothing
-- [ ] Resolves with the entry count actually written, so the caller can assert that what went in came out
-- [ ] Entries carry the frame file names, and listing them in lexical order yields temporal order
-- [ ] An empty input list rejects rather than producing a valid empty archive - an empty archive is indistinguishable from a stub's output
-- [ ] A write failure rejects and leaves no archive at the destination
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 5 new tests pass (no silent deletions)
+- [x] Created with `{ zlib: { level: 0 } }` - JPEG does not compress, so any level above zero is CPU spent for nothing
+- [x] Resolves with the entry count actually written, so the caller can assert that what went in came out
+- [x] Entries carry the frame file names, and listing them in lexical order yields temporal order
+- [x] An empty input list rejects rather than producing a valid empty archive - an empty archive is indistinguishable from a stub's output
+- [x] A write failure rejects and leaves no archive at the destination
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 5 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 
