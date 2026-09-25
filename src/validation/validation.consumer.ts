@@ -3,12 +3,16 @@ import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import type { DuplicateChecker } from './duplicate-checker.interface';
 import type { EventPublisher } from '../messaging/event-publisher.interface';
 import { outcomeEventId } from '../messaging/outcome-event-id';
+import {
+  MessageRejectedError,
+  settleFailedMessage,
+} from '../messaging/settle-failed-message';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
 import { VideoAcceptedDto } from '../messaging/dto/video-accepted.dto';
 import { VideoRejectedDto } from '../messaging/dto/video-rejected.dto';
 import type { VideoValidator } from './video-validator.interface';
 
-export class ValidationRejectedError extends Error {
+export class ValidationRejectedError extends MessageRejectedError {
   constructor(message: string) {
     super(message);
     this.name = 'ValidationRejectedError';
@@ -48,15 +52,13 @@ export class ValidationConsumer {
     } catch (err) {
       if (ctx) {
         const channel = ctx.getChannelRef() as {
-          ack: (message: unknown) => void;
           nack: (
             message: unknown,
             allUpTo?: boolean,
             requeue?: boolean,
           ) => void;
         };
-        const requeue = !(err instanceof ValidationRejectedError);
-        channel.nack(ctx.getMessage(), false, requeue);
+        await settleFailedMessage(channel, ctx.getMessage(), err);
       }
       throw err;
     }

@@ -15,6 +15,7 @@ import {
   ObjectHead,
 } from './../src/storage/object-storage.interface';
 import { outcomeEventId } from './../src/messaging/outcome-event-id';
+import { retryBackoffMs } from './../src/messaging/settle-failed-message';
 
 const SAMPLE = join(__dirname, 'fixtures', 'sample-8s.mp4');
 
@@ -122,7 +123,7 @@ describe('Validation flow (e2e)', () => {
     );
   });
 
-  it('publishes nothing and requeues when storage is unreachable during validation', async () => {
+  it('publishes nothing and requeues, only after the retry backoff, when storage is unreachable during validation', async () => {
     class UnreachableStorage extends InMemoryObjectStorage {
       head(): Promise<ObjectHead | undefined> {
         return Promise.reject(new Error('connect ECONNREFUSED minio:9000'));
@@ -136,12 +137,25 @@ describe('Validation flow (e2e)', () => {
       getChannelRef: () => ({ ack, nack }),
     } as unknown as RmqContext;
 
-    await expect(
-      consumer.handleVideoValidationRequested(dto, ctx),
-    ).rejects.toThrow('ECONNREFUSED');
+    const backoff = retryBackoffMs();
+    jest.useFakeTimers();
+    try {
+      const handled = expect(
+        consumer.handleVideoValidationRequested(dto, ctx),
+      ).rejects.toThrow('ECONNREFUSED');
+      // RM-20: never an immediate requeue against a dependency that is down.
+      await jest.advanceTimersByTimeAsync(backoff - 1);
+      expect(nack).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(1);
+      await handled;
+    } finally {
+      jest.useRealTimers();
+    }
 
     expect(publisher.publishedEvents).toEqual([]);
     expect(ack).not.toHaveBeenCalled();
+    expect(nack).toHaveBeenCalledTimes(1);
     expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
   });
 });

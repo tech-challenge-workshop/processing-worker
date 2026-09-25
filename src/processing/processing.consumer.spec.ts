@@ -16,6 +16,7 @@ import { InMemoryObjectStorage } from '../storage/in-memory-object-storage';
 import { frameArchiveKey } from './deterministic-frame-packager';
 import { MediaFramePackager } from './media-frame-packager';
 import { outcomeEventId } from '../messaging/outcome-event-id';
+import { retryBackoffMs } from '../messaging/settle-failed-message';
 import type { FramePackager } from './frame-packager.interface';
 import {
   ProcessingConsumer,
@@ -166,28 +167,44 @@ describe('ProcessingConsumer', () => {
     expect(nack).not.toHaveBeenCalled();
   });
 
-  it('nacks a malformed message without requeue', async () => {
+  it('nacks a malformed message without requeue, without waiting the retry backoff', async () => {
     const dto = createDto({ processingRequestId: '' });
     const { ctx, ack, nack } = createContext();
-
-    await expect(consumer.handleProcessingQueued(dto, ctx)).rejects.toThrow(
-      ProcessingRejectedError,
-    );
+    jest.useFakeTimers();
+    try {
+      // Settles with the clock frozen, so no backoff was waited (RM-20).
+      await expect(consumer.handleProcessingQueued(dto, ctx)).rejects.toThrow(
+        ProcessingRejectedError,
+      );
+    } finally {
+      jest.useRealTimers();
+    }
 
     expect(ack).not.toHaveBeenCalled();
     expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
   });
 
-  it('nacks a failed publication with requeue', async () => {
+  it('requeues a failed publication only after the retry backoff (RM-20)', async () => {
     const dto = createDto();
     publisher.setNextResult(false);
     const { ctx, ack, nack } = createContext();
+    const backoff = retryBackoffMs();
+    jest.useFakeTimers();
+    try {
+      const handled = expect(
+        consumer.handleProcessingQueued(dto, ctx),
+      ).rejects.toThrow('Failed to publish ProcessingStarted');
+      await jest.advanceTimersByTimeAsync(backoff - 1);
+      expect(nack).not.toHaveBeenCalled();
 
-    await expect(consumer.handleProcessingQueued(dto, ctx)).rejects.toThrow(
-      'Failed to publish ProcessingStarted',
-    );
+      await jest.advanceTimersByTimeAsync(1);
+      await handled;
+    } finally {
+      jest.useRealTimers();
+    }
 
     expect(ack).not.toHaveBeenCalled();
+    expect(nack).toHaveBeenCalledTimes(1);
     expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
   });
 

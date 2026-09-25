@@ -2,6 +2,10 @@ import { Controller, Inject, Injectable } from '@nestjs/common';
 import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import type { EventPublisher } from '../messaging/event-publisher.interface';
 import { outcomeEventId } from '../messaging/outcome-event-id';
+import {
+  MessageRejectedError,
+  settleFailedMessage,
+} from '../messaging/settle-failed-message';
 import { ProcessingCompletedDto } from '../messaging/dto/processing-completed.dto';
 import { ProcessingQueuedDto } from '../messaging/dto/processing-queued.dto';
 import { ProcessingStartedDto } from '../messaging/dto/processing-started.dto';
@@ -9,7 +13,7 @@ import { ProcessingFailedDto } from '../messaging/dto/processing-failed.dto';
 import type { FramePackager } from './frame-packager.interface';
 import type { DuplicateChecker } from '../validation/duplicate-checker.interface';
 
-export class ProcessingRejectedError extends Error {
+export class ProcessingRejectedError extends MessageRejectedError {
   constructor(message: string) {
     super(message);
     this.name = 'ProcessingRejectedError';
@@ -49,15 +53,13 @@ export class ProcessingConsumer {
     } catch (err) {
       if (ctx) {
         const channel = ctx.getChannelRef() as {
-          ack: (message: unknown) => void;
           nack: (
             message: unknown,
             allUpTo?: boolean,
             requeue?: boolean,
           ) => void;
         };
-        const requeue = !(err instanceof ProcessingRejectedError);
-        channel.nack(ctx.getMessage(), false, requeue);
+        await settleFailedMessage(channel, ctx.getMessage(), err);
       }
       throw err;
     }
