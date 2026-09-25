@@ -21,7 +21,12 @@ Read from `.specs/STATE.md` `## Decisions`. Every `active` entry is a constraint
 - **AD-010** makes delivery at-least-once, which is why P4 (redelivery costs nothing) exists at all rather than being defensive programming.
 - **AD-011** forbids setting queue arguments in a service. Task T15 changes `prefetchCount`, which is a **consumer** setting carried on the channel, not a queue argument — so it does not touch the topology the policy owns. `broker-topology.spec.ts` in this repository keeps that boundary enforced.
 
-**No new project-level decision is proposed.** Everything below is either an application of AD-006 or feature-local.
+**Decisions recorded by `fix/pre-s4-hardening`** (merged 2026-09-25; this branch was rebased onto it):
+
+- **AD-012** — the broker declares `video-validation`, `processing` and their `.dlq` as quorum queues under a dead-letter policy with `delivery-limit: 5`, and each service classifies its own failures: a message that is wrong is nacked without requeue, anything else is requeued after a pause. Its scope names this service as not yet conforming; T19 brings it in line.
+- **AD-013** — the Catalog applies lifecycle events under a row lock and tolerates their order. Nothing here depends on it for correctness, but it is why a republished `ProcessingCompleted` is absorbed rather than dead-lettered, even before T18 lands.
+
+**No new project-level decision is proposed.** Everything below is either an application of AD-006 and AD-012, or feature-local.
 
 ---
 
@@ -68,7 +73,7 @@ graph TD
     PUB3 -.-> OID
 ```
 
-The queue names are the ones the Catalog's `event-routes.ts` publishes to (`video-validation`, `processing`), not the event names. The distinction matters outside this repository: the broker's dead-letter policy currently matches the event names, so it covers neither queue (gap analysis V2).
+The queue names are the ones the Catalog's `event-routes.ts` publishes to (`video-validation`, `processing`), not the event names. The distinction matters outside this repository: until `fix/pre-s4-hardening` the broker's dead-letter policy matched the event names and covered neither queue. It now matches the queue names (AD-012).
 
 The two child-process users share one runner. That is deliberate: the timeout, the non-zero-exit handling and the stderr capture are the parts most likely to be got subtly wrong, and having two copies means fixing each bug twice.
 
@@ -195,6 +200,17 @@ The two child-process users share one runner. That is deliberate: the timeout, t
 - **Reuses**: Nothing
 - **Notes**: Keyed on the **consumed** event's id, not on `processingRequestId`, so a genuinely new attempt (a new `ProcessingQueued` with a new id) still gets new outcome ids, while a technical redelivery of the same message gets the same ones. `ProcessingStarted` and `ProcessingCompleted` for one job differ by `outcome`, so they never collide. The Catalog stores `processed_event.event_id` as `text`, so any stable string would work; a v5 UUID keeps the shape every other event already has, which is what logs and contract tests assume.
 
+### settleFailedMessage
+
+- **Purpose**: Settles a message whose handling threw: dead-letter it when the message itself is wrong, requeue it after a pause otherwise.
+- **Location**: `src/messaging/settle-failed-message.ts`
+- **Interfaces**:
+  - `settleFailedMessage(channel, message, error, backoffMs?): Promise<void>` - `nack(requeue=false)` for a permanent failure; waits `backoffMs`, then `nack(requeue=true)`
+  - `isPermanentFailure(error): boolean` - `ValidationRejectedError`, `ProcessingRejectedError`, `SyntaxError`
+- **Dependencies**: None
+- **Reuses**: The shape of `processing-catalog/src/infrastructure/rabbitmq/settle-failed-message.ts`, so both services read the same `RABBITMQ_RETRY_BACKOFF_MS` and settle the same way. Copied, not shared: there is no shared package, and one function does not justify creating one.
+- **Notes**: Replaces the inline `nack` in both consumers, which today requeue a transient failure **immediately**. RabbitMQ 4 does not count an explicit requeue against a quorum queue's delivery limit (AD-012), so without the pause a message spins against a dead dependency as fast as the broker can redeliver it. The consumers keep rethrowing after settling, as they do now, so Nest's own handling is unchanged.
+
 ### FfmpegAvailability check
 
 - **Purpose**: Fails readiness at startup when the binaries are missing.
@@ -247,6 +263,7 @@ export interface RunResult {
 | `FFPROBE_TIMEOUT_MS` | `30000` | RM-07 probe timeout |
 | `PREFETCH_VALIDATION` | `20` | RM-14 |
 | `PREFETCH_PROCESSING` | `1` | RM-14 |
+| `RABBITMQ_RETRY_BACKOFF_MS` | `1000` | RM-20 — same variable and default as the Catalog |
 | `MAX_SOURCE_BYTES` | `524288000` | RM-07 |
 | `MAX_DURATION_SECONDS` | `600` | RM-07 |
 
@@ -265,7 +282,8 @@ Absent storage credentials selecting the in-memory adapter mirrors the Catalog's
 | FFmpeg non-zero or timeout | Packager throws; consumer publishes `ProcessingFailed` with `PROCESSAMENTO_FALHOU`; workspace removed | `FAILED`, no partial archive stored |
 | Storage unreachable on download or upload | Same as above | `FAILED` rather than a silently unacknowledged job |
 | Archive already at the key | `head` hit; key returned without extracting; `ProcessingCompleted` republished under the same derived `eventId` | Redelivery is invisible; no second object, and the Catalog absorbs the duplicate instead of dead-lettering it |
-| Storage unreachable during validation | Nack with requeue; no `VideoRejected` | None beyond delay. Rejecting would blame the user's file for our outage |
+| Storage unreachable during validation | Requeued after `RABBITMQ_RETRY_BACKOFF_MS`; no `VideoRejected` | None beyond delay. Rejecting would blame the user's file for our outage |
+| Message itself invalid (rejected error, body not JSON) | `nack` without requeue; the broker policy routes it to `<queue>.dlq` | The request never advances; the message is inspectable in the DLQ instead of looping |
 | Workspace removal fails | Path logged; the published outcome is not changed | None. The outcome was already correct; a leaked directory is an operator concern, not a user one |
 | FFmpeg absent from the image | Readiness false at startup | The pod never receives traffic, instead of failing every job |
 
@@ -293,6 +311,7 @@ Absent storage credentials selecting the in-memory adapter mirrors the Catalog's
 | `spawn` vs `exec` | `spawn` with an argument vector | `exec` goes through a shell, making a storage key with a quote in it an injection surface |
 | Resource handling for temp files | Callback-scoped `withWorkspace` | The same reason the Catalog's unit of work hands the repository to the callback: no exit path can skip the release |
 | Idempotency source of truth | Existence of the object at the deterministic key | Survives restart and is shared across replicas. Local state satisfies neither, and AD-008 rules out a cache |
+| Transient-failure retry | Requeue after a fixed pause, retried indefinitely | Mirrors the Catalog (AD-012). A retry counter would need a republish with a header, because an explicit requeue carries no count; a fixed pause bounds the rate without dead-lettering every in-flight job during an outage |
 | Outcome `eventId` | UUIDv5 of the consumed `eventId` and the outcome type | Moves event-level idempotency to the Catalog's durable `processed_event` table instead of adding a store here. Random ids made every redelivery look like a new event and dead-letter at the Catalog |
 | Absence as a return value, not an exception | `head` returns `undefined` | Absence is an expected outcome in two requirements; exceptions would make it control flow in a catch |
 | ZIP compression level | `0` (store) | JPEG does not compress. Any level above zero is CPU spent for nothing |
