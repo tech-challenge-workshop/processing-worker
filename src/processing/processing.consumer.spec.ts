@@ -15,6 +15,8 @@ import { ZipBuilder } from '../media/zip-builder';
 import { InMemoryObjectStorage } from '../storage/in-memory-object-storage';
 import { frameArchiveKey } from './deterministic-frame-packager';
 import { MediaFramePackager } from './media-frame-packager';
+import { outcomeEventId } from '../messaging/outcome-event-id';
+import type { FramePackager } from './frame-packager.interface';
 import {
   ProcessingConsumer,
   ProcessingRejectedError,
@@ -25,8 +27,9 @@ describe('ProcessingConsumer', () => {
   let publisher: FakeEventPublisher;
   let duplicateChecker: InMemoryDuplicateChecker;
 
-  const UUID_V4_REGEX =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  // RM-18: an outcome's id is a v5 UUID derived from the consumed event.
+  const UUID_V5_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
   const createDto = (
     overrides?: Partial<ProcessingQueuedDto>,
@@ -87,7 +90,10 @@ describe('ProcessingConsumer', () => {
     expect('attemptId' in event).toBe(true);
     expect(event.attemptId).toBe(dto.attemptId);
     expect(event.eventId).not.toBe(dto.eventId);
-    expect(event.eventId).toMatch(UUID_V4_REGEX);
+    expect(event.eventId).toMatch(UUID_V5_REGEX);
+    expect(event.eventId).toBe(
+      outcomeEventId(dto.eventId, 'ProcessingCompleted'),
+    );
     expect(event.zipStorageKey).toBe(
       `local/${dto.processingRequestId}/${dto.attemptId}/frames.zip`,
     );
@@ -451,6 +457,80 @@ describe('ProcessingConsumer', () => {
       expect(storage.keys().sort()).toEqual(
         [SOURCE_KEY, frameArchiveKey(createDto())].sort(),
       );
+    });
+  });
+
+  // RM-18: a redelivery reaches a replica (or a restarted process) that has
+  // not seen the message, so each consumption below has its own duplicate
+  // checker. Every republished outcome must carry the id the first one did.
+  describe('when the same message is consumed twice', () => {
+    const replica = async (
+      packager: FramePackager,
+    ): Promise<ProcessingConsumer> => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ProcessingConsumer,
+          {
+            provide: 'DUPLICATE_CHECKER',
+            useValue: new InMemoryDuplicateChecker(),
+          },
+          { provide: 'EVENT_PUBLISHER', useValue: publisher },
+          { provide: 'FRAME_PACKAGER', useValue: packager },
+        ],
+      }).compile();
+      return module.get<ProcessingConsumer>(ProcessingConsumer);
+    };
+
+    const failingPackager: FramePackager = {
+      packageFrames: () => Promise.reject(new Error('ffmpeg blew up')),
+    };
+
+    it.each<[string, FramePackager]>([
+      ['ProcessingCompleted', new DeterministicFramePackager()],
+      ['ProcessingFailed', failingPackager],
+    ])(
+      'publishes ProcessingStarted and %s under the same eventIds both times',
+      async (outcome, packager) => {
+        await (await replica(packager)).handleProcessingQueued(createDto());
+        await (await replica(packager)).handleProcessingQueued(createDto());
+
+        expect(publisher.publishedTypes).toEqual([
+          'ProcessingStarted',
+          outcome,
+          'ProcessingStarted',
+          outcome,
+        ]);
+        const ids = publisher.publishedEvents.map((e) => e.eventId);
+        expect(ids[2]).toBe(ids[0]);
+        expect(ids[3]).toBe(ids[1]);
+      },
+    );
+
+    it('gives ProcessingStarted and ProcessingCompleted of one job different ids', async () => {
+      await consumer.handleProcessingQueued(createDto());
+
+      const [started, completed] = publisher.publishedEvents;
+      expect(started.eventId).toBe(
+        outcomeEventId('evt-1', 'ProcessingStarted'),
+      );
+      expect(completed.eventId).toBe(
+        outcomeEventId('evt-1', 'ProcessingCompleted'),
+      );
+      expect(started.eventId).not.toBe(completed.eventId);
+    });
+
+    it('gives a new attempt, which arrives as a new message, new ids', async () => {
+      await (
+        await replica(new DeterministicFramePackager())
+      ).handleProcessingQueued(createDto());
+      await (
+        await replica(new DeterministicFramePackager())
+      ).handleProcessingQueued(
+        createDto({ eventId: 'evt-2', attemptId: 'attempt-2' }),
+      );
+
+      const ids = publisher.publishedEvents.map((e) => e.eventId);
+      expect(new Set(ids).size).toBe(4);
     });
   });
 });

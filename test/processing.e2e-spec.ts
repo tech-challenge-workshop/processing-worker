@@ -15,6 +15,7 @@ import { OBJECT_STORAGE } from './../src/storage/object-storage.interface';
 import { FfmpegFrameExtractor } from './../src/media/ffmpeg-frame-extractor';
 import type { WorkerEvent } from './../src/messaging/event-publisher.interface';
 import type { WorkerEventType } from './../src/messaging/event-routes';
+import { outcomeEventId } from './../src/messaging/outcome-event-id';
 
 // The source key the DTO names holds the real 8-second MP4, and the root
 // binds the real media packager: ffmpeg and archiver run for every job here.
@@ -26,8 +27,9 @@ describe('Processing flow (e2e)', () => {
   let duplicateChecker: InMemoryDuplicateChecker;
   let storage: InMemoryObjectStorage;
 
-  const UUID_V4_REGEX =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  // RM-18: an outcome's id is a v5 UUID derived from the consumed event.
+  const UUID_V5_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
   const dto: ProcessingQueuedDto = {
     eventId: 'evt-1',
@@ -131,7 +133,10 @@ describe('Processing flow (e2e)', () => {
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.attemptId).toBe(dto.attemptId);
     expect(event.eventId).not.toBe(dto.eventId);
-    expect(event.eventId).toMatch(UUID_V4_REGEX);
+    expect(event.eventId).toMatch(UUID_V5_REGEX);
+    expect(event.eventId).toBe(
+      outcomeEventId(dto.eventId, 'ProcessingCompleted'),
+    );
     expect(event.zipStorageKey).toBe(
       `local/${dto.processingRequestId}/${dto.attemptId}/frames.zip`,
     );
@@ -199,7 +204,10 @@ describe('Processing flow (e2e)', () => {
       };
       expect(failed.failureCode).toBe('PROCESSAMENTO_FALHOU');
       expect(failed.attemptId).toBe(dto.attemptId);
-      expect(failed.eventId).toMatch(UUID_V4_REGEX);
+      expect(failed.eventId).toMatch(UUID_V5_REGEX);
+      expect(failed.eventId).toBe(
+        outcomeEventId(dto.eventId, 'ProcessingFailed'),
+      );
     });
 
     it('publishes nothing further when the failed job is redelivered', async () => {

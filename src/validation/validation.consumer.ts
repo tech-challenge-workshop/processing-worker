@@ -1,8 +1,8 @@
 import { Controller, Inject, Injectable } from '@nestjs/common';
 import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
-import { randomUUID } from 'crypto';
 import type { DuplicateChecker } from './duplicate-checker.interface';
 import type { EventPublisher } from '../messaging/event-publisher.interface';
+import { outcomeEventId } from '../messaging/outcome-event-id';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
 import { VideoAcceptedDto } from '../messaging/dto/video-accepted.dto';
 import { VideoRejectedDto } from '../messaging/dto/video-rejected.dto';
@@ -80,7 +80,7 @@ export class ValidationConsumer {
 
     if (outcome.accepted) {
       const accepted: VideoAcceptedDto = {
-        eventId: randomUUID(),
+        eventId: outcomeEventId(dto.eventId, 'VideoAccepted'),
         processingRequestId: dto.processingRequestId,
         occurredAt: dto.occurredAt,
       };
@@ -94,7 +94,7 @@ export class ValidationConsumer {
       }
     } else {
       const rejected: VideoRejectedDto = {
-        eventId: randomUUID(),
+        eventId: outcomeEventId(dto.eventId, 'VideoRejected'),
         processingRequestId: dto.processingRequestId,
         failureCode: outcome.failureCode,
         occurredAt: dto.occurredAt,
