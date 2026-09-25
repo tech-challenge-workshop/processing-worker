@@ -191,13 +191,14 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Readiness is false when either binary is absent, and true when both answer
-- [ ] The probe runs once at bootstrap rather than per health request
-- [ ] Liveness does not depend on it
-- [ ] The health endpoint reports the media capability, so an operator sees the cause without reading logs
-- [ ] Full gate passes: `npm test && npm run test:e2e`
-- [ ] Test count: at least 3 new tests pass (no silent deletions)
+- [x] Readiness is false when either binary is absent, and true when both answer
+- [x] The probe runs once at bootstrap rather than per health request
+- [x] Liveness does not depend on it
+- [x] The health endpoint reports the media capability, so an operator sees the cause without reading logs
+- [x] Full gate passes: `npm test && npm run test:e2e`
+- [x] Test count: at least 3 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: e2e
 **Gate**: full
 
