@@ -444,15 +444,16 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Begins with `head` on the deterministic key; an archive already there returns the key without extracting and without storing a second object
-- [ ] On a first attempt: downloads the source, extracts frames, builds the archive, uploads it, and returns the key
-- [ ] The upload is the last step, so a failure at any earlier stage leaves no object at all rather than a partial one
-- [ ] `ProcessingCompleted` is only reachable after the upload has been confirmed
-- [ ] A failure at each stage - download, extract, zip, upload - propagates, and the temp workspace is gone afterwards in every case
-- [ ] The archive's entry count is asserted against the extracted frame count before upload
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 9 new tests pass (no silent deletions)
+- [x] Begins with `head` on the deterministic key; an archive already there returns the key without extracting and without storing a second object
+- [x] On a first attempt: downloads the source, extracts frames, builds the archive, uploads it, and returns the key
+- [x] The upload is the last step, so a failure at any earlier stage leaves no object at all rather than a partial one
+- [x] `ProcessingCompleted` is only reachable after the upload has been confirmed
+- [x] A failure at each stage - download, extract, zip, upload - propagates, and the temp workspace is gone afterwards in every case
+- [x] The archive's entry count is asserted against the extracted frame count before upload
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 9 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 
