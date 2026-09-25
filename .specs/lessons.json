@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 2,
+  "next_id": 4,
   "lessons": [
     {
       "id": "L-001",
@@ -22,6 +22,42 @@
       ],
       "created": "2026-08-27T23:34:08Z",
       "last_seen": "2026-08-27T23:34:08Z"
+    },
+    {
+      "id": "L-002",
+      "key": "spec_precision_gap::state the precedence between rejection rules that can both apply to one input and pin it with a test",
+      "text": "State the precedence between rejection rules that can both apply to one input, and pin it with a test",
+      "signal": "spec_precision_gap",
+      "scope": "",
+      "status": "candidate",
+      "features": [
+        "real-media-processing"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "src/validation/ffprobe-video-validator.ts:95"
+      ],
+      "created": "2026-09-25T22:15:54Z",
+      "last_seen": "2026-09-25T22:15:54Z"
+    },
+    {
+      "id": "L-003",
+      "key": "ac_gap::an e2e test that asserts which adapter the root selects must clear every environment variable the selection reads or it passes only in a clean shell",
+      "text": "An e2e test that asserts which adapter the root selects must clear every environment variable the selection reads, or it passes only in a clean shell",
+      "signal": "ac_gap",
+      "scope": "",
+      "status": "candidate",
+      "features": [
+        "real-media-processing"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "test/health.e2e-spec.ts:86"
+      ],
+      "created": "2026-09-25T22:15:54Z",
+      "last_seen": "2026-09-25T22:15:54Z"
     }
   ]
 }
