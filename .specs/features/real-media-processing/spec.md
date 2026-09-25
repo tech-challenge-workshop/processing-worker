@@ -183,7 +183,7 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 | --- | --- | --- | --- |
 | RM-07 | P1: Validation that opens the file | Design | Pending |
 | RM-08 | P1: Validation that opens the file | Design | Pending |
-| RM-09 | P2: Extraction that produces a ZIP | Execute (T5) | Implementing |
+| RM-09 | P2: Extraction that produces a ZIP | Execute (T5, T6) | Implementing |
 | RM-10 | P2: Extraction that produces a ZIP | Design | Pending |
 | RM-11 | P2: Extraction that produces a ZIP | Design | Pending |
 | RM-12 | P3: Failure that is honest and terminal | Execute (T2) | Implementing |

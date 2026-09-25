@@ -246,13 +246,14 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] `forcePathStyle: true` and the endpoint, bucket and credentials all come from configuration - no provider name appears above this file (AD-005)
-- [ ] A `NotFound` / `404` from `head` becomes `undefined` rather than a thrown error
-- [ ] `download` streams to a local path without buffering the whole object in memory
-- [ ] An integration test round-trips upload, head and download against a real endpoint, and skips by its own guard when `STORAGE_ENDPOINT` is unset
-- [ ] Full gate passes: `npm test && npm run test:e2e`
-- [ ] Test count: at least 4 new tests pass (no silent deletions)
+- [x] `forcePathStyle: true` and the endpoint, bucket and credentials all come from configuration - no provider name appears above this file (AD-005)
+- [x] A `NotFound` / `404` from `head` becomes `undefined` rather than a thrown error
+- [x] `download` streams to a local path without buffering the whole object in memory
+- [x] An integration test round-trips upload, head and download against a real endpoint, and skips by its own guard when `STORAGE_ENDPOINT` is unset
+- [x] Full gate passes: `npm test && npm run test:e2e`
+- [x] Test count: at least 4 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: integration
 **Gate**: full
 
