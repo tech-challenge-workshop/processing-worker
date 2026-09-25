@@ -10,7 +10,7 @@ import { FramePackager } from './frame-packager.interface';
 export function frameArchiveKey(
   job: Pick<ProcessingQueuedDto, 'processingRequestId' | 'attemptId'>,
 ): string {
-  return `local/${job.processingRequestId}/${job.attemptId}/frames.zip`;
+  return `zips/${job.processingRequestId}/${job.attemptId}/frames.zip`;
 }
 
 /**

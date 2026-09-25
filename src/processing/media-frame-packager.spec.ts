@@ -107,7 +107,7 @@ describe('MediaFramePackager', () => {
     attemptId: 'attempt-1',
     occurredAt: '2026-09-25T00:00:00Z',
   };
-  const KEY = 'local/req-1/attempt-1/frames.zip';
+  const KEY = 'zips/req-1/attempt-1/frames.zip';
   let log: Log;
   let storage: LoggingStorage;
   let extractor: LoggingExtractor;

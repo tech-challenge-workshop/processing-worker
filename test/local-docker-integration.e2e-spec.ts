@@ -121,7 +121,7 @@ describe('Local Docker Integration (e2e)', () => {
     expect(event.processingRequestId).toBe(dto.processingRequestId);
     expect(event.attemptId).toBe(dto.attemptId);
     expect(event.zipStorageKey).toBe(
-      `local/${dto.processingRequestId}/${dto.attemptId}/frames.zip`,
+      `zips/${dto.processingRequestId}/${dto.attemptId}/frames.zip`,
     );
     expect(ack).toHaveBeenCalledTimes(1);
     expect(nack).not.toHaveBeenCalled();
