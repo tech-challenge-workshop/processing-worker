@@ -387,15 +387,16 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] Invokes `ffmpeg -nostdin -v error -i <src> -vf fps=1 -threads <N> <dir>/frame-%05d.jpg`
-- [ ] The thread count comes from configuration and defaults to 1 - host core detection is never used (AD-006)
-- [ ] The returned frame list is read back from the directory and sorted, so it reflects what FFmpeg wrote rather than what was expected
-- [ ] A non-zero exit or a timeout rejects, and no partial frame list is returned
-- [ ] The **argument vector** is asserted, including `-threads` and its value - a dropped flag is invisible in the produced frames, which is why AD-006 had to state it
-- [ ] A real short video produces the expected number of frames
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 6 new tests pass (no silent deletions)
+- [x] Invokes `ffmpeg -nostdin -v error -i <src> -vf fps=1 -threads <N> <dir>/frame-%05d.jpg`
+- [x] The thread count comes from configuration and defaults to 1 - host core detection is never used (AD-006)
+- [x] The returned frame list is read back from the directory and sorted, so it reflects what FFmpeg wrote rather than what was expected
+- [x] A non-zero exit or a timeout rejects, and no partial frame list is returned
+- [x] The **argument vector** is asserted, including `-threads` and its value - a dropped flag is invisible in the produced frames, which is why AD-006 had to state it
+- [x] A real short video produces the expected number of frames
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 6 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 
