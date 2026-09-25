@@ -186,7 +186,7 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 | RM-09 | P2: Extraction that produces a ZIP | Design | Pending |
 | RM-10 | P2: Extraction that produces a ZIP | Design | Pending |
 | RM-11 | P2: Extraction that produces a ZIP | Design | Pending |
-| RM-12 | P3: Failure that is honest and terminal | Design | Pending |
+| RM-12 | P3: Failure that is honest and terminal | Execute (T2) | Implementing |
 | RM-13 | P4: A redelivery costs nothing | Design | Pending |
 | RM-14 | P5: Bounded work in flight | Design | Pending |
 | RM-15 | P2: Extraction that produces a ZIP | Design | Pending |
