@@ -220,12 +220,13 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] `head` returns `undefined` for an absent key and never throws for absence
-- [ ] `download` and `upload` are declared in terms of local paths, so adapters own all transfer detail
-- [ ] The in-memory adapter satisfies the port with a type that forces every member - never `Partial`, which once let a missing method compile and fail only at runtime
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 4 new tests pass (no silent deletions)
+- [x] `head` returns `undefined` for an absent key and never throws for absence
+- [x] `download` and `upload` are declared in terms of local paths, so adapters own all transfer detail
+- [x] The in-memory adapter satisfies the port with a type that forces every member - never `Partial`, which once let a missing method compile and fail only at runtime
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 4 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 
