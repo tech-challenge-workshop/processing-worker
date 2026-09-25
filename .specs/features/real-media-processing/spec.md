@@ -52,7 +52,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | Whether ZIP entries are compressed | Stored without compression | JPEG frames do not compress meaningfully, so the CPU spent is spent for nothing | n |
 | Frame image format and naming | JPEG, zero-padded sequential names | Zero padding keeps lexical order equal to temporal order, which is what a consumer extracting the archive will assume | n |
 | How an outcome event gets its `eventId` | Derived deterministically (UUIDv5) from the consumed event's `eventId` and the outcome's type, instead of `randomUUID()` | Today every redelivery republishes its outcome under a fresh id, so the Catalog's `eventId` deduplication never recognises it: a republished `ProcessingCompleted` reaches a `COMPLETED` request as a new event, fails the domain guard and is dead-lettered. A derived id turns the republish into a duplicate the Catalog already absorbs. Found by the S1–S3 verification of 2026-09-24 | n |
-| What happens when storage is unreachable during **validation** | The job is nacked with requeue; no `VideoRejected` is published | Rejecting would tell the user their file is invalid when the fault is ours. Processing fails terminally (P3) because a business attempt already exists; validation has none yet. The retry is bounded only once the broker policy covers `video-validation` with a delivery limit, which is tracked outside this slice | n |
+| What happens when storage is unreachable during **validation** | The job is requeued after a pause; no `VideoRejected` is published | Rejecting would tell the user their file is invalid when the fault is ours. Processing fails terminally (P3) because a business attempt already exists; validation has none yet. The broker's delivery limit does **not** bound this retry: RabbitMQ 4 does not count an explicit requeue against it (AD-012), so the pause of RM-20 is what keeps the loop from spinning | n |
+| How a failure is classified for settlement | A `ValidationRejectedError`/`ProcessingRejectedError` (the message itself is wrong) is nacked without requeue and dead-lettered; anything else is requeued after `RABBITMQ_RETRY_BACKOFF_MS` (default 1000) | Mirrors the Catalog's `settleFailedMessage` (AD-012), so both services behave the same when a dependency is down. Today the Worker requeues immediately, which spins a message against a dead dependency as fast as the broker can redeliver it | n |
 
 **Open questions:** none - all resolved or logged above.
 
@@ -115,7 +116,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 5. IF FFmpeg or FFprobe is absent from the image THEN the Worker SHALL fail its readiness check at startup rather than failing each job individually.
 6. WHILE a processing job is in flight the Worker SHALL publish exactly one of `ProcessingCompleted` or `ProcessingFailed` for it.
 
-**Independent Test**: Point a job at an object that is a valid MP4 header followed by garbage, and see `ProcessingFailed` with `PROCESSAMENTO_FALHOU`, no archive stored, and no temporary directory left on disk.
+7. IF handling a job throws an error that is not a rejection of the message itself THEN the Worker SHALL wait the configured retry backoff before requeueing it, and SHALL NOT requeue immediately.
+8. IF a job is rejected because the message itself is invalid THEN the Worker SHALL nack it without requeue, so that the broker's dead-letter policy routes it to `<queue>.dlq`.
+
+**Independent Test**: Point a job at an object that is a valid MP4 header followed by garbage, and see `ProcessingFailed` with `PROCESSAMENTO_FALHOU`, no archive stored, and no temporary directory left on disk. Separately, make storage unreachable during validation and confirm the job is requeued no faster than once per backoff interval.
 
 ---
 
@@ -160,7 +164,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 - IF a video is shorter than one second THEN the Worker SHALL still produce at least one frame and SHALL complete rather than fail.
 - IF the source object exists but has zero length THEN the Worker SHALL publish `VideoRejected` with `FORMATO_INVALIDO`.
 - IF object storage is unreachable while reading the source for a processing job THEN the Worker SHALL publish `ProcessingFailed` with `PROCESSAMENTO_FALHOU` rather than leaving the job silently unacknowledged.
-- IF object storage is unreachable during a validation job THEN the Worker SHALL NOT publish `VideoRejected` and SHALL nack the job with requeue, because the fault is not the user's file.
+- IF object storage is unreachable during a validation job THEN the Worker SHALL NOT publish `VideoRejected` and SHALL requeue the job after the retry backoff (RM-20), because the fault is not the user's file.
+- IF a delivered body is not valid JSON THEN the Worker SHALL NOT requeue it indefinitely: it SHALL be dead-lettered. Nest's RMQ transport parses the body before any handler runs, so where that parse fails is the first thing T19 establishes.
 - IF FFmpeg exits non-zero after writing some frames THEN the Worker SHALL treat the job as failed and SHALL NOT store a partial archive.
 - IF the FFmpeg process exceeds its configured timeout THEN the Worker SHALL terminate it, publish `ProcessingFailed` with `PROCESSAMENTO_FALHOU`, and remove the temporary directory.
 - WHEN the Worker is shut down while a job is in flight THEN it SHALL NOT acknowledge that job, so that another replica receives it.
@@ -188,12 +193,15 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 | RM-16 | P3: Failure that is honest and terminal | Design | Pending |
 | RM-17 | P3: Failure that is honest and terminal | Design | Pending |
 | RM-18 | P4: A redelivery costs nothing | Design | Pending |
+| RM-20 | P3: Failure that is honest and terminal | Design | Pending |
+
+`RM-19` belongs to `fiap-x-platform` (the smoke's rejection path), which is why this service's range skips it.
 
 **ID format:** `[CATEGORY]-[NUMBER]`
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 12 total, 0 mapped to tasks, 12 unmapped ⚠️
+**Coverage:** 13 total, 0 mapped to tasks, 13 unmapped ⚠️
 
 ---
 
@@ -207,6 +215,7 @@ How we know the feature is successful:
 - [ ] No temporary directory remains after any job, including one killed by a timeout
 - [ ] Both queues report a finite prefetch, and queued work beyond it stays `ready` rather than `unacked`
 - [ ] The FFmpeg command line carries an explicit `-threads` value that matches the container's CPU limit
+- [ ] With storage unreachable, a validation job is retried at most once per backoff interval, and an invalid message lands in `<queue>.dlq` on its first delivery
 
 ---
 
@@ -216,10 +225,10 @@ RM-01 to RM-06 in `fiap-x-platform` provide the bucket, the seeded source video 
 
 S3 (`durable-persistence`) is merged, and this branch was rebased onto it on 2026-09-24: the Catalog it publishes to is the durable one, and the redelivery behaviour in P4 is only meaningful because AD-010 made delivery at-least-once.
 
-Three findings of the S1–S3 verification (2026-09-24) sit outside this repository and affect how far this slice can be trusted end to end. They are tracked in the gap analysis under "Validar depois", not here:
+Three findings of the S1–S3 verification (2026-09-24) that bore on this slice were **resolved before it started**, by `fix/pre-s4-hardening` (merged 2026-09-25: `fiap-x-platform#5`, `processing-catalog#6`, `notification-service#6`). This branch was rebased onto that merge the same day.
 
-| Finding | Owner | Effect on this slice |
+| Finding | Resolution | What this slice can now rely on |
 | --- | --- | --- |
-| The Catalog can handle `ProcessingCompleted` before `ProcessingStarted` commits and dead-letter it | `processing-catalog` (V3) | A short fixture finishes extraction fast enough to hit the window, so the platform smoke can flake until it is fixed |
-| The broker's dead-letter policy does not match `video-validation` or `processing` | `fiap-x-platform` (V2) | A job this service nacks without requeue is dropped rather than dead-lettered, and a requeued one has no retry limit |
-| The Catalog's database tests are skipped in CI | `processing-catalog` (V1) | Nothing in CI proves the Catalog side of RM-18's deduplication |
+| V3 — the Catalog could handle `ProcessingCompleted` before `ProcessingStarted` commits and dead-letter it | AD-013: lifecycle events are applied under a row lock, and the Catalog accepts completion from `QUEUED`, ignores a late or repeated start, and absorbs a completion that restates the stored key | A fast extraction cannot strand a request in `PROCESSING`, so a red platform smoke points at the media path. A republished `ProcessingCompleted` is absorbed even before RM-18 lands |
+| V2 — the dead-letter policy did not match `video-validation` or `processing` | AD-012: the broker declares both queues and their `.dlq` as quorum queues, and the policy matches them with `delivery-limit: 5` | A job this service nacks without requeue reaches `video-validation.dlq` / `processing.dlq`; a job that kills the process is dead-lettered at the limit. An explicit requeue is **not** bounded by the broker — that is RM-20's job |
+| V1 — the Catalog's database tests were skipped in CI | CI runs them against PostgreSQL and fails on any skip | The Catalog side of RM-18's deduplication is proved in CI |
