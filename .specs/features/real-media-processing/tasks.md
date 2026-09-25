@@ -163,14 +163,15 @@ T19 -> T17
 - Skill: NONE
 
 **Done when**:
-- [ ] `withWorkspace` creates a directory named by `processingRequestId` and `attemptId` under the system temp directory
-- [ ] The directory and its contents are removed after the callback returns
-- [ ] The directory is removed when the callback throws, and the original error propagates unchanged
-- [ ] A failure to remove the directory is logged and does not change the callback's outcome
-- [ ] Tested against the real filesystem, asserting the directory is gone in both cases
-- [ ] Quick gate passes: `npm test`
-- [ ] Test count: at least 4 new tests pass (no silent deletions)
+- [x] `withWorkspace` creates a directory named by `processingRequestId` and `attemptId` under the system temp directory
+- [x] The directory and its contents are removed after the callback returns
+- [x] The directory is removed when the callback throws, and the original error propagates unchanged
+- [x] A failure to remove the directory is logged and does not change the callback's outcome
+- [x] Tested against the real filesystem, asserting the directory is gone in both cases
+- [x] Quick gate passes: `npm test`
+- [x] Test count: at least 4 new tests pass (no silent deletions)
 
+**Status**: ✅ Complete
 **Tests**: unit
 **Gate**: quick
 

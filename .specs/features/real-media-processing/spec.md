@@ -190,7 +190,7 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 | RM-13 | P4: A redelivery costs nothing | Design | Pending |
 | RM-14 | P5: Bounded work in flight | Design | Pending |
 | RM-15 | P2: Extraction that produces a ZIP | Design | Pending |
-| RM-16 | P3: Failure that is honest and terminal | Design | Pending |
+| RM-16 | P3: Failure that is honest and terminal | Execute (T3) | Implementing |
 | RM-17 | P3: Failure that is honest and terminal | Execute (T1) | Implementing |
 | RM-18 | P4: A redelivery costs nothing | Design | Pending |
 | RM-20 | P3: Failure that is honest and terminal | Design | Pending |
