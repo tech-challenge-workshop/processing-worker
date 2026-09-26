@@ -11,7 +11,7 @@
 
 ## Primary technology context
 
-NestJS and TypeScript, FFprobe, FFmpeg, S3-compatible object storage (MinIO locally), and RabbitMQ.
+NestJS and TypeScript, FFprobe, FFmpeg, S3-compatible object storage (RustFS locally, since fiap-x-platform AD-014 replaced MinIO), and RabbitMQ.
 
 ## Integrations
 

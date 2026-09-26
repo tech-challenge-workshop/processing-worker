@@ -255,7 +255,7 @@ export interface RunResult {
 
 | Variable | Default | Requirement |
 | --- | --- | --- |
-| `STORAGE_ENDPOINT` | `http://minio:9000` | RM-09 |
+| `STORAGE_ENDPOINT` | `http://storage:9000` (was `http://minio:9000` until fiap-x-platform AD-014) | RM-09 |
 | `STORAGE_BUCKET` | `fiapx` | RM-11 |
 | `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` | none - absent means the in-memory adapter | RM-09 |
 | `FFMPEG_THREADS` | `1` | RM-15 |
