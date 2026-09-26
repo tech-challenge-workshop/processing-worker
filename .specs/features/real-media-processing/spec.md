@@ -77,6 +77,8 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 6. The Worker SHALL check the object's reported size before downloading it, so that an oversized file is rejected without being transferred.
 7. WHILE a validation job is in flight the Worker SHALL publish exactly one of `VideoAccepted` or `VideoRejected` for it.
 
+**Precedence (traceability note, MSG-13 in `catalog-messaging-hardening`)**: when AC2 and AC4 both apply - a readable video longer than 600 seconds in a container outside the MP4/MOV family - the Worker publishes `DURACAO_EXCEDIDA`, the more informative rejection. Pinned by the two `mkv` cases in `src/validation/ffprobe-video-validator.spec.ts`.
+
 **Independent Test**: Feed a real 8-second MP4 and see `VideoAccepted`; feed a text file renamed to `.mp4` and see `VideoRejected` with `FORMATO_INVALIDO`; feed an 11-minute MP4 and see `DURACAO_EXCEDIDA`.
 
 ---

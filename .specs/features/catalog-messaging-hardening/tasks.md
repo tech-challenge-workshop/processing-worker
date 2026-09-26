@@ -99,11 +99,13 @@ Also add a traceability note on RM-07 in `real-media-processing/spec.md`.
 
 **Done when**:
 
-- [ ] Swapping the two checks in the validator turns the first case red
-- [ ] Quick gate passes
+- [x] Swapping the two checks in the validator turns the first case red
+- [x] Quick gate passes
 
 **Tests**: unit
 **Gate**: quick
+
+**Status**: ✅ Done. Two cases in `src/validation/ffprobe-video-validator.spec.ts` with the stub probe: `matroska,webm` at 601 s gives `DURACAO_EXCEDIDA`, at 8 s `FORMATO_INVALIDO`. Both pin today's behaviour, so they were green on first run; the red is the negative: moving the container check above the duration check fails the first case only (1 failed, 18 passed). RM-07 in `real-media-processing/spec.md` carries a precedence note. Quick gate: unit 165/165 (was 163).
 
 ---
 

@@ -191,6 +191,33 @@ describe('FfprobeVideoValidator', () => {
     });
   });
 
+  // MSG-13: RM-07 AC2 and AC4 both apply to a long video in an unsupported
+  // container; the duration verdict wins, as the more informative rejection.
+  it('rejects an mkv longer than 600 s with DURACAO_EXCEDIDA, not FORMATO_INVALIDO', async () => {
+    const probe = new StubProbe(
+      readableVideo({
+        formatNames: ['matroska', 'webm'],
+        durationSeconds: 601,
+      }),
+    );
+
+    await expect(validatorWith(probe).validate(job)).resolves.toEqual({
+      accepted: false,
+      failureCode: 'DURACAO_EXCEDIDA',
+    });
+  });
+
+  it('rejects an mkv within 600 s with FORMATO_INVALIDO', async () => {
+    const probe = new StubProbe(
+      readableVideo({ formatNames: ['matroska', 'webm'], durationSeconds: 8 }),
+    );
+
+    await expect(validatorWith(probe).validate(job)).resolves.toEqual({
+      accepted: false,
+      failureCode: 'FORMATO_INVALIDO',
+    });
+  });
+
   it('rejects a text file renamed to .mp4 with FORMATO_INVALIDO through the real ffprobe', async () => {
     await seed('this is a text file renamed to .mp4\n');
     const probe = new FfprobeProbe(new ChildProcessRunner(), {
