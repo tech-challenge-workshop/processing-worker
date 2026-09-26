@@ -18,7 +18,7 @@ export function createObjectStorage(
   const storage =
     accessKeyId && secretAccessKey
       ? S3ObjectStorage.fromConfig({
-          endpoint: env.STORAGE_ENDPOINT ?? 'http://minio:9000',
+          endpoint: env.STORAGE_ENDPOINT ?? 'http://storage:9000',
           bucket: env.STORAGE_BUCKET ?? 'fiapx',
           accessKeyId,
           secretAccessKey,

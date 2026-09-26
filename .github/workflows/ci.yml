@@ -29,18 +29,21 @@ jobs:
       - run: npm run typecheck
       - run: npm test -- --coverage
       # The S3 adapter's integration test needs a real endpoint, and fails
-      # rather than skips in CI when STORAGE_ENDPOINT is unset. Same MinIO
-      # release as fiap-x-platform's compose.
-      - name: Start MinIO for the storage integration test
+      # rather than skips in CI when STORAGE_ENDPOINT is unset. Same server
+      # and development credentials as fiap-x-platform's compose (AD-014:
+      # RustFS replaced MinIO, whose public images were withdrawn). Only the
+      # endpoint is exported: the test defaults to these credentials, and
+      # exporting the keys would switch the AppModule e2e suites to S3.
+      - name: Start RustFS for the storage integration test
         run: |
-          docker run -d --name minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+          docker run -d --name storage -p 9000:9000 \
+            -e RUSTFS_ACCESS_KEY=fiapx-dev -e RUSTFS_SECRET_KEY=fiapx-dev-secret \
+            rustfs/rustfs:1.0.0
           for i in $(seq 1 30); do
-            curl -sf http://localhost:9000/minio/health/ready && exit 0
+            curl -sf http://localhost:9000/health && exit 0
             sleep 1
           done
-          docker logs minio
+          docker logs storage
           exit 1
       - run: npm run test:e2e
         env:

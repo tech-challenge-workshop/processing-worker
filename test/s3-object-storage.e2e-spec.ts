@@ -9,16 +9,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { S3ObjectStorage } from './../src/storage/s3-object-storage';
 
-// Round-trips the adapter against a real S3 endpoint (MinIO from
-// fiap-x-platform locally, a MinIO container in CI). Skipped by its own guard
+// Round-trips the adapter against a real S3 endpoint (RustFS from
+// fiap-x-platform locally, a RustFS container in CI; AD-014). Skipped by its own guard
 // when STORAGE_ENDPOINT is unset on a developer machine; in CI an unset
 // endpoint fails instead, so the suite can never go green by skipping.
 const endpoint = process.env.STORAGE_ENDPOINT;
 const config = {
   endpoint: endpoint ?? '',
   bucket: process.env.STORAGE_BUCKET ?? 'fiapx',
-  accessKeyId: process.env.STORAGE_ACCESS_KEY ?? 'minioadmin',
-  secretAccessKey: process.env.STORAGE_SECRET_KEY ?? 'minioadmin',
+  accessKeyId: process.env.STORAGE_ACCESS_KEY ?? 'fiapx-dev',
+  secretAccessKey: process.env.STORAGE_SECRET_KEY ?? 'fiapx-dev-secret',
 };
 
 if (!endpoint && process.env.CI) {
