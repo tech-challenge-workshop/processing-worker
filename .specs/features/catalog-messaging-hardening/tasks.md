@@ -156,16 +156,22 @@ In CI, the e2e job gains a `rabbitmq:4-management` service that loads the platfo
 
 **Done when**:
 
-- [ ] Both cases pass against a local broker loaded with the definitions
-- [ ] `CI=true` without `RABBITMQ_TEST_URL` fails the suite
+- [x] Both cases pass against a local broker loaded with the definitions
+- [x] `CI=true` without `RABBITMQ_TEST_URL` fails the suite
 - [ ] Discrimination:
-  - With `PREFETCH_PROCESSING=3`, the prefetch case goes red.
-  - Treating `SyntaxError` as transient makes the DLQ case go red.
-- [ ] The workflow parses. Its RabbitMQ service mounts the definitions from a checkout of `tech-challenge-workshop/fiap-x-platform`
-- [ ] Build gate passes
+  - [x] With `PREFETCH_PROCESSING=3`, the prefetch case goes red.
+  - [ ] Treating `SyntaxError` as transient makes the DLQ case go red. **Not met as written** - see Status.
+- [x] The workflow parses. Its RabbitMQ service mounts the definitions from a checkout of `tech-challenge-workshop/fiap-x-platform`
+- [x] Build gate passes
 
 **Tests**: integration
 **Gate**: build
+
+**Status**: ⚠️ Done, with one discrimination criterion unmet as written. `test/broker.e2e-spec.ts` starts the Worker as `main.ts` composes it (both consumers from `consumerOptions`, a packager that never resolves) against `RABBITMQ_TEST_URL`; it fails in CI when the URL is unset (1 failed, 2 skipped) and skips locally (2 skipped). Prefetch: 3 `ProcessingQueued` published, `checkQueue('processing').messageCount` polled to 2 within 10 s, still 2 a second later, and the packager reached once. Non-JSON: `video-validation.dlq` reaches exactly 1 within 10 s, the source queue is empty, and the dead-lettered message carries body `not json` and `x-death` `{ queue: 'video-validation', reason: 'rejected', count: 1 }`, so it was rejected on its first delivery, not dropped by the delivery limit. Both queues used, plus the DLQ, are purged before and after each case.
+
+Negatives: `PREFETCH_PROCESSING=3` fails the prefetch case (expected 2, received 0). Removing `SyntaxError` from `isPermanentFailure` leaves the DLQ case **green**: Nest's `ServerRMQ.parseMessageContent` swallows the parse error and passes the raw string on, the packet has no pattern, and `handleEvent` nacks it without requeue before any Worker code runs, so the Worker's `SyntaxError` branch is never reached by a non-JSON body. The test does discriminate the mechanism that actually dead-letters: changing that Nest nack to requeue fails it (expected 1, received 0). Whether the `SyntaxError` branch is dead code for this input is left for the Verifier.
+
+CI: the RabbitMQ is a `docker run` step, not a job `services:` entry, because a service starts before any checkout exists to mount. It runs `rabbitmq:4-management` with the platform's `rabbitmq.conf` and `definitions.json` from a sparse checkout of `tech-challenge-workshop/fiap-x-platform` (identical to the local copies), mounted where the platform compose mounts them, waits for the port and for `video-validation.dlq` to exist, and `RABBITMQ_TEST_URL` is set on the e2e step. The workflow parses (PyYAML). Build gate with `CI=true`, `STORAGE_ENDPOINT` and `RABBITMQ_TEST_URL`: lint 0, typecheck 0, unit 165/165, e2e 54/54 (was 52), none skipped, build 0.
 
 ---
 
