@@ -112,16 +112,16 @@ Decisions of 2026-09-26 are in `processing-catalog/.specs/features/catalog-messa
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| MSG-12 | P1: Health suite isolated from the shell (V19.1) | Design | In Design |
-| MSG-13 | P2: Duration-over-format precedence pinned (V19.2) | Design | In Design |
-| MSG-14 | P3: Shutdown never acks in-flight work (V19.3) | Design | In Design |
-| MSG-15 | P4: Prefetch and non-JSON DLQ against RabbitMQ (V19.4) | Design | In Design |
+| MSG-12 | P1: Health suite isolated from the shell (V19.1) | Tasks | In Tasks |
+| MSG-13 | P2: Duration-over-format precedence pinned (V19.2) | Tasks | In Tasks |
+| MSG-14 | P3: Shutdown never acks in-flight work (V19.3) | Tasks | In Tasks |
+| MSG-15 | P4: Prefetch and non-JSON DLQ against RabbitMQ (V19.4) | Tasks | In Tasks |
 
 **ID format:** `[CATEGORY]-[NUMBER]`
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 4 total, 0 mapped to tasks, 4 unmapped ⚠️ (mapped in Tasks)
+**Coverage:** 4 total, 4 mapped to tasks, 0 unmapped
 
 ---
 
