@@ -67,12 +67,14 @@ T4
 
 **Done when**:
 
-- [ ] Running the suite with `STORAGE_ENDPOINT=http://127.0.0.1:9` exported gives the same results as without it, and so does running it with junk credentials. Show both runs
-- [ ] The variables hold their prior values after the suite
-- [ ] Full gate passes
+- [x] Running the suite with `STORAGE_ENDPOINT=http://127.0.0.1:9` exported gives the same results as without it, and so does running it with junk credentials. Show both runs
+- [x] The variables hold their prior values after the suite
+- [x] Full gate passes
 
 **Tests**: e2e
 **Gate**: full
+
+**Status**: ✅ Done. The readiness suite saves, clears and restores the four `STORAGE_*` variables `createObjectStorage` reads; no `AWS_*` variable is read by the storage module, so none is touched (design.md named them). A file-level hook exports an unreachable endpoint and junk credentials around the suite in every run, and a last test checks those values are back afterwards. Health suite 6/6 in a clean shell, with `STORAGE_ENDPOINT=http://127.0.0.1:9`, and with junk credentials; before the change the junk-credential run failed 3 of 5. Negatives: dropping the clear turns the 3 readiness-body tests red; dropping the restore turns the restore test red. Full gate: unit 163/163, e2e 52/52 (was 51), none skipped.
 
 ---
 
