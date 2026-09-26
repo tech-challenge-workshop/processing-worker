@@ -12,6 +12,7 @@ import { StorageModule } from '../storage/storage.module';
 import { ValidationModule } from '../validation/validation.module';
 import { MediaFramePackager } from './media-frame-packager';
 import { ProcessingConsumer } from './processing.consumer';
+import { ShutdownSignal } from './shutdown-signal';
 
 // DeterministicFramePackager is a test double and the home of the key
 // format. It is never bound here, and test/composition.e2e-spec.ts asserts
@@ -25,6 +26,7 @@ import { ProcessingConsumer } from './processing.consumer';
     FfmpegFrameExtractor,
     { provide: FFMPEG_OPTIONS, useFactory: () => ffmpegOptionsFromEnv() },
     ZipBuilder,
+    ShutdownSignal,
     {
       provide: 'FRAME_PACKAGER',
       useClass: MediaFramePackager,

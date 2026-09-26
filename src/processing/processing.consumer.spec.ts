@@ -22,6 +22,7 @@ import {
   ProcessingConsumer,
   ProcessingRejectedError,
 } from './processing.consumer';
+import { ShutdownSignal } from './shutdown-signal';
 
 describe('ProcessingConsumer', () => {
   let consumer: ProcessingConsumer;
@@ -66,6 +67,7 @@ describe('ProcessingConsumer', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProcessingConsumer,
+        ShutdownSignal,
         { provide: 'DUPLICATE_CHECKER', useValue: duplicateChecker },
         { provide: 'EVENT_PUBLISHER', useValue: publisher },
         {
@@ -213,6 +215,7 @@ describe('ProcessingConsumer', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           ProcessingConsumer,
+          ShutdownSignal,
           { provide: 'DUPLICATE_CHECKER', useValue: duplicateChecker },
           { provide: 'EVENT_PUBLISHER', useValue: publisher },
           {
@@ -340,6 +343,7 @@ describe('ProcessingConsumer', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           ProcessingConsumer,
+          ShutdownSignal,
           { provide: 'DUPLICATE_CHECKER', useValue: duplicateChecker },
           { provide: 'EVENT_PUBLISHER', useValue: publisher },
           {
@@ -487,6 +491,7 @@ describe('ProcessingConsumer', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           ProcessingConsumer,
+          ShutdownSignal,
           {
             provide: 'DUPLICATE_CHECKER',
             useValue: new InMemoryDuplicateChecker(),

@@ -1,5 +1,6 @@
 import { ProcessingCompletedDto } from './../src/messaging/dto/processing-completed.dto';
 import { Test, TestingModule } from '@nestjs/testing';
+import { RmqContext } from '@nestjs/microservices';
 import { AppModule } from './../src/app.module';
 import { ProcessingConsumer } from './../src/processing/processing.consumer';
 import { FakeEventPublisher } from './../src/messaging/fake-event-publisher';
@@ -218,6 +219,68 @@ describe('Processing flow (e2e)', () => {
         'ProcessingStarted',
         'ProcessingFailed',
       ]);
+    });
+  });
+
+  // MSG-14: a Worker stopped mid-job must leave the message unacked, so the
+  // broker hands it to another Worker once this connection is gone.
+  describe('when the app is closed while the packager is running', () => {
+    let settle!: { resolve: (key: string) => void; reject: (e: Error) => void };
+    let handled: Promise<void>;
+    let settled: string[];
+
+    beforeEach(async () => {
+      let packagerCalled!: () => void;
+      const packagerReached = new Promise<void>((r) => (packagerCalled = r));
+      const moduleFixture: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+      })
+        .overrideProvider('EVENT_PUBLISHER')
+        .useValue(publisher)
+        .overrideProvider('DUPLICATE_CHECKER')
+        .useValue(duplicateChecker)
+        .overrideProvider('FRAME_PACKAGER')
+        .useValue({
+          packageFrames: () => {
+            packagerCalled();
+            return new Promise<string>(
+              (resolve, reject) => (settle = { resolve, reject }),
+            );
+          },
+        })
+        .compile();
+      const app = moduleFixture.createNestApplication();
+      await app.init();
+      settled = [];
+      const channel = {
+        ack: () => settled.push('ack'),
+        nack: () => settled.push('nack'),
+      };
+      const message = { content: Buffer.from(JSON.stringify(dto)) };
+      const ctx = new RmqContext([message, channel, 'ProcessingQueued']);
+
+      handled = app
+        .get(ProcessingConsumer)
+        .handleProcessingQueued(dto, ctx)
+        .catch(() => undefined);
+      await packagerReached;
+      await app.close();
+    });
+
+    it('neither acks the message nor publishes ProcessingCompleted when the packager then succeeds', async () => {
+      settle.resolve('zips/req-1/attempt-1/frames.zip');
+      await handled;
+
+      expect(settled).toEqual([]);
+      expect(publisher.publishedTypes).toEqual(['ProcessingStarted']);
+    });
+
+    it('neither acks the message nor publishes ProcessingFailed when the packager then fails', async () => {
+      settle.reject(new Error('ffmpeg killed by shutdown'));
+      await handled;
+
+      expect(settled).toEqual([]);
+      expect(publisher.publishedTypes).toEqual(['ProcessingStarted']);
     });
   });
 });
