@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 4,
+  "next_id": 6,
   "lessons": [
     {
       "id": "L-001",
@@ -58,6 +58,42 @@
       ],
       "created": "2026-09-25T22:15:54Z",
       "last_seen": "2026-09-25T22:15:54Z"
+    },
+    {
+      "id": "L-004",
+      "key": "surviving_mutant::when behaviour depends on which lifecycle hook sets a flag test the event arriving between hooks not only after the whole close",
+      "text": "When behaviour depends on which lifecycle hook sets a flag, test the event arriving between hooks, not only after the whole close.",
+      "signal": "surviving_mutant",
+      "scope": "lifecycle",
+      "status": "candidate",
+      "features": [
+        "catalog-messaging-hardening"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "src/processing/shutdown-signal.ts:15 (lifecycle)"
+      ],
+      "created": "2026-09-26T19:26:52Z",
+      "last_seen": "2026-09-26T19:26:52Z"
+    },
+    {
+      "id": "L-005",
+      "key": "spec_deviation::probe what the framework does before your handler runs a classification branch the framework pre empts is dead code that only unit tests keep alive",
+      "text": "Probe what the framework does before your handler runs; a classification branch the framework pre-empts is dead code that only unit tests keep alive.",
+      "signal": "spec_deviation",
+      "scope": "messaging",
+      "status": "candidate",
+      "features": [
+        "catalog-messaging-hardening"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "src/messaging/settle-failed-message.ts:30 (messaging)"
+      ],
+      "created": "2026-09-26T19:26:52Z",
+      "last_seen": "2026-09-26T19:26:52Z"
     }
   ]
 }

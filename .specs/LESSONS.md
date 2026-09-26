@@ -32,6 +32,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: test/health.e2e-spec.ts:86
 - last seen: 2026-09-25T22:15:54Z
 
+### L-004 - When behaviour depends on which lifecycle hook sets a flag, test the event arriving between hooks, not only after the whole close.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `lifecycle` · harmful: 0
+- features: catalog-messaging-hardening
+- evidence: src/processing/shutdown-signal.ts:15 (lifecycle)
+- last seen: 2026-09-26T19:26:52Z
+
+### L-005 - Probe what the framework does before your handler runs; a classification branch the framework pre-empts is dead code that only unit tests keep alive.
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `messaging` · harmful: 0
+- features: catalog-messaging-hardening
+- evidence: src/messaging/settle-failed-message.ts:30 (messaging)
+- last seen: 2026-09-26T19:26:52Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
