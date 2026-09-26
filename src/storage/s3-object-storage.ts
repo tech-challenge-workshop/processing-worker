@@ -19,7 +19,7 @@ export interface S3ObjectStorageConfig {
 
 /**
  * The SDK requires a region to sign requests. S3-compatible servers such as
- * MinIO accept any value, so it is fixed rather than configured.
+ * RustFS accept any value, so it is fixed rather than configured.
  */
 const SIGNING_REGION = 'us-east-1';
 
@@ -27,7 +27,7 @@ const SIGNING_REGION = 'us-east-1';
 export type S3Sender = Pick<S3Client, 'send'>;
 
 /**
- * The object storage port over the S3 API. MinIO locally and any managed
+ * The object storage port over the S3 API. RustFS locally (AD-014) and any managed
  * S3-compatible store are this same adapter with a different endpoint
  * (AD-005); no provider name appears above this file.
  */
