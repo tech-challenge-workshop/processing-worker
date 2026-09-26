@@ -14,6 +14,21 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The broker e2e suite's RabbitMQ. A job service, like the Notification
+    # CI's: started by the runner itself, it boots where a `docker run` of
+    # the same image failed on the Erlang cookie (eacces). The stack's
+    # topology is imported after checkout, below.
+    services:
+      rabbitmq:
+        image: rabbitmq:4-management-alpine
+        ports:
+          - 5672:5672
+          - 15672:15672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,34 +62,28 @@ jobs:
           exit 1
       # The broker e2e suite needs a real RabbitMQ, and fails rather than
       # skips in CI when RABBITMQ_TEST_URL is unset. It runs with the stack's
-      # own topology: definitions.json and rabbitmq.conf come from a checkout
-      # of the public platform repository, as the Catalog's CI takes
-      # 01-schemas.sql, and are mounted where fiap-x-platform's compose mounts
-      # them. A docker run step rather than a job service, because a service
-      # starts before any checkout exists to mount.
+      # own topology: definitions.json comes from a checkout of the public
+      # platform repository, as the Catalog's CI takes 01-schemas.sql, and is
+      # imported through the management API - the same file the platform's
+      # rabbitmq.conf loads with load_definitions, which is all that file
+      # configures. The import sets the vhost's quorum default, every queue
+      # and its .dlq, and the dead-letter policy.
       - uses: actions/checkout@v4
         with:
           repository: tech-challenge-workshop/fiap-x-platform
           path: .platform
           sparse-checkout: rabbitmq
-      - name: Start RabbitMQ for the broker e2e suite
+      - name: Load the platform's broker definitions
         run: |
-          # Same image and user as the platform's compose: the Debian image
-          # run as its default user cannot read its own Erlang cookie on the
-          # hosted runner (eacces), and the stack runs the alpine one as 0:0.
-          docker run -d --name rabbitmq -p 5672:5672 --user 0:0 \
-            -v "$GITHUB_WORKSPACE/.platform/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/10-fiapx.conf:ro" \
-            -v "$GITHUB_WORKSPACE/.platform/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro" \
-            rabbitmq:4-management-alpine
-          for i in $(seq 1 60); do
-            if docker exec rabbitmq rabbitmq-diagnostics -q check_port_connectivity >/dev/null 2>&1 \
-              && docker exec rabbitmq rabbitmqctl -q list_queues name | grep -qx 'video-validation.dlq'; then
-              exit 0
-            fi
+          # The health check pings the node; the management API can take a
+          # few more seconds to accept requests.
+          for i in $(seq 1 30); do
+            curl -fsS -u guest:guest -H 'content-type: application/json' \
+              -X POST --data @.platform/rabbitmq/definitions.json \
+              http://localhost:15672/api/definitions && break
             sleep 2
           done
-          docker logs rabbitmq
-          exit 1
+          curl -fsS -u guest:guest http://localhost:15672/api/queues/%2F/video-validation.dlq >/dev/null
       - run: npm run test:e2e
         env:
           STORAGE_ENDPOINT: http://localhost:9000
