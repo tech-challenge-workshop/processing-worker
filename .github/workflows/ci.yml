@@ -45,9 +45,37 @@ jobs:
           done
           docker logs storage
           exit 1
+      # The broker e2e suite needs a real RabbitMQ, and fails rather than
+      # skips in CI when RABBITMQ_TEST_URL is unset. It runs with the stack's
+      # own topology: definitions.json and rabbitmq.conf come from a checkout
+      # of the public platform repository, as the Catalog's CI takes
+      # 01-schemas.sql, and are mounted where fiap-x-platform's compose mounts
+      # them. A docker run step rather than a job service, because a service
+      # starts before any checkout exists to mount.
+      - uses: actions/checkout@v4
+        with:
+          repository: tech-challenge-workshop/fiap-x-platform
+          path: .platform
+          sparse-checkout: rabbitmq
+      - name: Start RabbitMQ for the broker e2e suite
+        run: |
+          docker run -d --name rabbitmq -p 5672:5672 \
+            -v "$GITHUB_WORKSPACE/.platform/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/10-fiapx.conf:ro" \
+            -v "$GITHUB_WORKSPACE/.platform/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro" \
+            rabbitmq:4-management
+          for i in $(seq 1 60); do
+            if docker exec rabbitmq rabbitmq-diagnostics -q check_port_connectivity >/dev/null 2>&1 \
+              && docker exec rabbitmq rabbitmqctl -q list_queues name | grep -qx 'video-validation.dlq'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs rabbitmq
+          exit 1
       - run: npm run test:e2e
         env:
           STORAGE_ENDPOINT: http://localhost:9000
+          RABBITMQ_TEST_URL: amqp://guest:guest@localhost:5672
       - run: npm run build
       - name: Upload coverage summary
         if: always()
