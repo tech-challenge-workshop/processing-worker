@@ -111,9 +111,9 @@ Also add a traceability note on RM-07 in `real-media-processing/spec.md`.
 
 ### T3: Closing mid-job never acks
 
-**What**: An e2e test holds the packager on a promise, delivers one `ProcessingQueued`, closes the app, then releases the promise.
+**What**: An e2e test holds the packager on a promise, delivers one `ProcessingQueued`, closes the app, then releases the promise. Includes the behaviour change decided 2026-09-26: a `ShutdownSignal` flag set on app close, checked by the consumer after the packager settles, so an in-flight job publishes no terminal event and does not ack once shutdown has begun.
 
-**Where**: `test/processing.e2e-spec.ts`
+**Where**: `test/processing.e2e-spec.ts`, `src/processing/shutdown-signal.ts` (new), `src/processing/processing.consumer.ts`, `src/processing/processing.module.ts`
 **Depends on**: None
 **Reuses**: The processing e2e composition and its fake channel
 **Requirement**: MSG-14
@@ -125,13 +125,16 @@ Also add a traceability note on RM-07 in `real-media-processing/spec.md`.
 
 **Done when**:
 
-- [ ] No `ack` is recorded, and no `ProcessingCompleted` or `ProcessingFailed` is published
-- [ ] An `ack` added before the packager is awaited turns the test red
-- [ ] If the composition cannot close mid-handler, report that before changing any behaviour (design.md)
-- [ ] Full gate passes
+- [x] No `ack` is recorded, and no `ProcessingCompleted` or `ProcessingFailed` is published (packager released and packager rejected after close)
+- [x] An `ack` added before the packager is awaited turns the test red
+- [x] Removing the flag check turns the test red
+- [x] The composition could not close mid-handler without the handler finishing: reported, and the user chose the behaviour change (2026-09-26)
+- [x] Full gate passes
 
 **Tests**: e2e
 **Gate**: full
+
+**Status**: ✅ Done, with the behaviour change the user chose on 2026-09-26. The first run showed `app.close()` neither waits for nor cancels an in-flight handler: released after close, the job published `ProcessingCompleted` and acked. `ShutdownSignal` (`src/processing/shutdown-signal.ts`, provided by `ProcessingModule`) sets `isClosing` in `onModuleDestroy`, the first hook `close()` runs, before `dispose` closes the consumer servers and before `onApplicationShutdown` closes the publisher clients. After the packager settles, success or failure, `ProcessingConsumer` checks it; if set, it logs one warning and returns without publishing, acking or nacking. Two e2e cases in `test/processing.e2e-spec.ts` build the app, deliver one `ProcessingQueued` with a recording channel, close the app while the packager is held, then resolve or reject it: the channel records nothing and only `ProcessingStarted` is published. Both were red before the change (ack plus the terminal event). Negatives: dropping the flag check turns both red; an ack issued before the packager is awaited turns both red. The consumer unit spec registers `ShutdownSignal` in its four testing modules (wiring only; no assertion changed). Build gate with `CI=true`, `STORAGE_ENDPOINT` and `RABBITMQ_TEST_URL` in `node:22-alpine` with ffmpeg: lint 0, typecheck 0, unit 165/165, e2e 56/56 (was 54), none skipped, build 0.
 
 ---
 
@@ -191,7 +194,7 @@ Phase 1 (T1 T2 T3 T4)
 | --- | --- | --- |
 | T1 | 1 suite | ✅ Granular |
 | T2 | 2 test cases (+ spec note) | ✅ Granular |
-| T3 | 1 test | ✅ Granular |
+| T3 | 2 test cases + 1 flag provider and its check | ✅ Granular |
 | T4 | 1 suite + its CI service | ⚠️ OK - cohesive; the suite cannot run in CI without the service |
 
 ---
@@ -213,5 +216,5 @@ Phase 1 (T1 T2 T3 T4)
 | --- | --- | --- | --- | --- |
 | T1 | Test harness | e2e | e2e | ✅ OK |
 | T2 | Validator (tests) | unit | unit | ✅ OK |
-| T3 | Consumer lifecycle (test) | e2e | e2e | ✅ OK |
+| T3 | Consumer lifecycle (flag + test) | e2e | e2e | ✅ OK |
 | T4 | Broker behaviour + CI | integration | integration | ✅ OK |

@@ -18,7 +18,7 @@ The S4 Verifier passed the Worker with four follow-ups (V19):
 
 | Feature | Reason |
 | --- | --- |
-| Changing validation or processing behaviour | These are follow-ups on tested behaviour, not changes to it |
+| Changing validation or processing behaviour | These are follow-ups on tested behaviour, not changes to it. One exception, decided 2026-09-26: MSG-14 changes what an in-flight processing job does once shutdown begins |
 | The platform smoke | The broker checks are proven in the Worker's own suite (context.md, Agent's discretion) |
 
 ---
@@ -32,6 +32,7 @@ Decisions of 2026-09-26 are in `processing-catalog/.specs/features/catalog-messa
 | Duration or format first (RM-07 AC2/AC4) | A video longer than the limit is `DURACAO_EXCEDIDA` even when its container is not MP4/MOV, as the code does today | `ffprobe-video-validator.ts` checks duration first on purpose ("the more informative rejection"); this pins it | y |
 | Where the broker checks run | A new e2e suite against a real RabbitMQ at `RABBITMQ_TEST_URL`; it fails instead of skipping when `CI` is set, and CI starts a RabbitMQ 4 service | Same pattern as the API's `STORAGE_TEST_ENDPOINT` (S6) | y |
 | Health suite isolation | Save, clear and restore the storage variables around the suite | The pattern `test/composition.e2e-spec.ts:40-47` already uses | y |
+| Shutdown mid-job | A shutdown flag set on app close; after it, the processing consumer publishes no terminal event and does not ack (decided 2026-09-26: behaviour change) | `app.close()` neither waited for nor cancelled an in-flight handler, which then published `ProcessingCompleted` and acked after close | y |
 
 **Open questions:** none - all resolved or logged above.
 
@@ -114,7 +115,7 @@ Decisions of 2026-09-26 are in `processing-catalog/.specs/features/catalog-messa
 | --- | --- | --- | --- |
 | MSG-12 | P1: Health suite isolated from the shell (V19.1) | Execute | Implementing |
 | MSG-13 | P2: Duration-over-format precedence pinned (V19.2) | Execute | Implementing |
-| MSG-14 | P3: Shutdown never acks in-flight work (V19.3) | Tasks | In Tasks |
+| MSG-14 | P3: Shutdown never acks in-flight work (V19.3) | Execute | Implementing |
 | MSG-15 | P4: Prefetch and non-JSON DLQ against RabbitMQ (V19.4) | Execute | Implementing |
 
 **ID format:** `[CATEGORY]-[NUMBER]`

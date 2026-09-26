@@ -7,7 +7,7 @@
 
 ## Architecture Overview
 
-This is test work, with no behaviour change. Three items live in the existing suites; the fourth adds one broker-backed e2e suite and a RabbitMQ service in CI.
+This is test work, with one behaviour change (MSG-14, decided 2026-09-26): once the app begins shutting down, an in-flight processing job publishes no terminal event and does not ack. Three items live in the existing suites; the fourth adds one broker-backed e2e suite and a RabbitMQ service in CI.
 
 ---
 
@@ -40,8 +40,11 @@ This is test work, with no behaviour change. Three items live in the existing su
 - **Test**: e2e with the in-memory broker adapter the processing e2e already uses.
   1. The packager returns a promise held by the test.
   2. Deliver one `ProcessingQueued`, then call `app.close()`, then release the promise.
-  3. Assert `ack` was never called and no terminal event was published.
-- **Fallback**: if the current composition cannot close mid-handler without the handler finishing, the implementer reports it before changing any behaviour.
+  3. Assert `ack` and `nack` were never called and only `ProcessingStarted` was published.
+  4. A second case rejects the held promise instead: still no settle call and no `ProcessingFailed`.
+- **Why a change**: `app.close()` neither waits for nor cancels an in-flight handler, so the job released after close published `ProcessingCompleted` and acked.
+- **Flag**: `src/processing/shutdown-signal.ts`, a `ShutdownSignal` provider in `ProcessingModule`, sets `isClosing` in `onModuleDestroy`. That is the first hook `app.close()` runs (destroy → beforeApplicationShutdown → dispose, which closes the microservice servers → onApplicationShutdown, which closes the `ClientsModule` publishers), so the flag is up before the channel or the publishers close.
+- **Consumer**: after the packager settles, success or failure, `ProcessingConsumer` checks the flag. If it is set, it logs one warning and returns without publishing, acking or nacking; the message stays unacked and the broker redelivers it when the connection closes. `ProcessingStarted` is still published before the work, and nothing else changes.
 
 ### `test/broker.e2e-spec.ts` (new, MSG-15)
 
