@@ -8,6 +8,7 @@ import amqp, {
 import { AppModule } from './../src/app.module';
 import { consumerOptions } from './../src/messaging/consumer-options';
 import { ProcessingQueuedDto } from './../src/messaging/dto/processing-queued.dto';
+import { brokerSuiteMode } from './../src/testing/broker-guard';
 import { FakeEventPublisher } from './../src/messaging/fake-event-publisher';
 import { InMemoryDuplicateChecker } from './../src/validation/in-memory-duplicate-checker';
 
@@ -18,8 +19,9 @@ import { InMemoryDuplicateChecker } from './../src/validation/in-memory-duplicat
 // Skipped when RABBITMQ_TEST_URL is unset on a developer machine; in CI an
 // unset URL fails instead, so the suite can never go green by skipping.
 const url = process.env.RABBITMQ_TEST_URL;
+const mode = brokerSuiteMode(process.env);
 
-if (!url && process.env.CI) {
+if (mode === 'fail') {
   describe('Worker against a real RabbitMQ', () => {
     it('requires RABBITMQ_TEST_URL in CI', () => {
       throw new Error('RABBITMQ_TEST_URL must be set in CI');
@@ -46,7 +48,9 @@ const eventually = async (
   return last;
 };
 
-(url ? describe : describe.skip)('Worker against a real RabbitMQ', () => {
+const describeBroker = mode === 'run' ? describe : describe.skip;
+
+describeBroker('Worker against a real RabbitMQ', () => {
   const QUEUES = ['processing', 'video-validation', 'video-validation.dlq'];
   let connection: AmqpConnectionManager;
   let channel: ChannelWrapper;
