@@ -44,6 +44,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: src/messaging/settle-failed-message.ts:30 (messaging)
 - last seen: 2026-09-26T19:26:52Z
 
+### L-006 - Testing a guard function is not enough: also test that the caller obeys its verdict, or the call site can drop it with every test green.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `testing` · harmful: 0
+- features: service-robustness
+- evidence: test/broker.e2e-spec.ts:24 (testing)
+- last seen: 2026-09-27T01:18:11Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
