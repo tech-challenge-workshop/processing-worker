@@ -85,13 +85,15 @@ T3
 - Skill: NONE
 
 **Done when**:
-- [ ] The four cases pass
-- [ ] Removing the `fail` branch fails a test
-- [ ] The broker suite behaves as before: with the URL, 2 tests pass; with `CI=true` and no URL, it fails
-- [ ] Full gate passes
+- [x] The four cases pass
+- [x] Removing the `fail` branch fails a test
+- [x] The broker suite behaves as before: with the URL, 2 tests pass; with `CI=true` and no URL, it fails
+- [x] Full gate passes
 
 **Tests**: unit
 **Gate**: full
+
+**Status**: ✅ Done. `src/testing/broker-guard.ts` plus 4 unit tests. Negatives: with the `fail` branch returning `skip`, the `{CI:'true'}` test fails; with `CI=false` counted as set, the `{CI:'false'}` test fails. Broker suite: with the URL, 2 passed; with `CI=true` and no URL, 1 failed and 2 skipped; with neither, 2 skipped. Gate: unit 169/169, e2e 57/57, none skipped.
 
 ---
 
