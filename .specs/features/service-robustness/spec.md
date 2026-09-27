@@ -85,16 +85,16 @@ Decisions of 2026-09-26 are in `processing-catalog/.specs/features/service-robus
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| ROB-06 | P1: Hook ordering pinned (V49) | - | Pending |
-| ROB-07 | P1: Accepted window documented (V49) | - | Pending |
-| ROB-08 | P2: CI guard tested (V49) | - | Pending |
-| ROB-09 | P2: Dead `SyntaxError` branch removed (V49) | - | Pending |
+| ROB-06 | P1: Hook ordering pinned (V49) | Tasks | In Tasks |
+| ROB-07 | P1: Accepted window documented (V49) | Tasks | In Tasks |
+| ROB-08 | P2: CI guard tested (V49) | Tasks | In Tasks |
+| ROB-09 | P2: Dead `SyntaxError` branch removed (V49) | Tasks | In Tasks |
 
 **ID format:** `[CATEGORY]-[NUMBER]`
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 4 total, 0 mapped to tasks, 4 unmapped ⚠️ (mapped in Tasks)
+**Coverage:** 4 total, 4 mapped to tasks, 0 unmapped
 
 ---
 
