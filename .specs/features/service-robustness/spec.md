@@ -88,7 +88,7 @@ Decisions of 2026-09-26 are in `processing-catalog/.specs/features/service-robus
 | ROB-06 | P1: Hook ordering pinned (V49) | Execute | Implementing |
 | ROB-07 | P1: Accepted window documented (V49) | Execute | Implementing |
 | ROB-08 | P2: CI guard tested (V49) | Execute | Implementing |
-| ROB-09 | P2: Dead `SyntaxError` branch removed (V49) | Tasks | In Tasks |
+| ROB-09 | P2: Dead `SyntaxError` branch removed (V49) | Execute | Implementing |
 
 **ID format:** `[CATEGORY]-[NUMBER]`
 

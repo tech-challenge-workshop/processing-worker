@@ -3,12 +3,15 @@ import { ValidationRejectedError } from '../validation/validation.consumer';
 import {
   DEFAULT_RETRY_BACKOFF_MS,
   isPermanentFailure,
+  MessageRejectedError,
   retryBackoffMs,
   settleFailedMessage,
 } from './settle-failed-message';
 
 // RM-20: a message that is itself wrong is dead-lettered at once; anything
-// else is requeued, but only after the retry backoff.
+// else is requeued, but only after the retry backoff. ROB-09: only a
+// MessageRejectedError is "itself wrong" - Nest nacks a non-JSON body before
+// the Worker runs, so a SyntaxError reaching this helper is transient.
 describe('settleFailedMessage', () => {
   const message = { content: Buffer.from('{}') };
   const channel = () => ({ nack: jest.fn() });
@@ -26,6 +29,7 @@ describe('settleFailedMessage', () => {
   afterEach(() => jest.useRealTimers());
 
   it.each<[string, () => unknown]>([
+    ['MessageRejectedError', () => new MessageRejectedError('body is wrong')],
     [
       'ValidationRejectedError',
       () => new ValidationRejectedError('processingRequestId is required'),
@@ -34,7 +38,6 @@ describe('settleFailedMessage', () => {
       'ProcessingRejectedError',
       () => new ProcessingRejectedError('attemptId is required'),
     ],
-    ['SyntaxError from a body that is not JSON', parseError],
   ])(
     'dead-letters a %s without requeue and without waiting the backoff',
     async (_name, error) => {
@@ -66,6 +69,19 @@ describe('settleFailedMessage', () => {
     expect(ch.nack).toHaveBeenCalledWith(message, false, true);
   });
 
+  it('requeues a SyntaxError only once the backoff has elapsed, as a transient failure', async () => {
+    const ch = channel();
+
+    const settled = settleFailedMessage(ch, message, parseError(), 1000);
+    await jest.advanceTimersByTimeAsync(999);
+    expect(ch.nack).not.toHaveBeenCalled();
+
+    await jest.advanceTimersByTimeAsync(1);
+    await settled;
+    expect(ch.nack).toHaveBeenCalledTimes(1);
+    expect(ch.nack).toHaveBeenCalledWith(message, false, true);
+  });
+
   it('waits the configured RABBITMQ_RETRY_BACKOFF_MS when no backoff is passed', async () => {
     const previous = process.env.RABBITMQ_RETRY_BACKOFF_MS;
     process.env.RABBITMQ_RETRY_BACKOFF_MS = '250';
@@ -87,6 +103,16 @@ describe('settleFailedMessage', () => {
 });
 
 describe('isPermanentFailure', () => {
+  it('is true for a MessageRejectedError', () => {
+    expect(isPermanentFailure(new MessageRejectedError('body is wrong'))).toBe(
+      true,
+    );
+  });
+
+  it('is false for a SyntaxError', () => {
+    expect(isPermanentFailure(new SyntaxError('Unexpected token'))).toBe(false);
+  });
+
   it('treats a TypeError as transient, so a bug is retried and logged rather than silently dead-lettered', () => {
     expect(isPermanentFailure(new TypeError('x is undefined'))).toBe(false);
   });
