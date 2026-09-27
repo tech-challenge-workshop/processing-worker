@@ -110,12 +110,14 @@ T3
 - Skill: NONE
 
 **Done when**:
-- [ ] Unit: a `SyntaxError` → requeue after the backoff; `MessageRejectedError` → `nack(false)`
-- [ ] The broker suite still shows non-JSON reaching `video-validation.dlq` on its first delivery
-- [ ] Build gate passes
+- [x] Unit: a `SyntaxError` → requeue after the backoff; `MessageRejectedError` → `nack(false)`
+- [x] The broker suite still shows non-JSON reaching `video-validation.dlq` on its first delivery
+- [x] Build gate passes
 
 **Tests**: unit + integration
 **Gate**: build
+
+**Status**: ✅ Done. Changed existing test: the `SyntaxError` row of the dead-letter `it.each` became a requeue-after-backoff test, as ROB-09 requires. Added a bare `MessageRejectedError` row, and `isPermanentFailure` cases for `MessageRejectedError` (true) and `SyntaxError` (false). Before the change, the two `SyntaxError` tests failed. Checked in `@nestjs/microservices` `server-rmq.js`: a non-JSON body parses to a string with no pattern, so `handleEvent` finds no handler and calls `nack(msg, false, false)`. Broker suite: 2/2, with non-JSON in `video-validation.dlq` on its first delivery. Gate: lint, typecheck, unit 172/172, e2e 57/57 (none skipped), build.
 
 ---
 

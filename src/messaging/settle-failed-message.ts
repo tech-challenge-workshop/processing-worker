@@ -28,11 +28,17 @@ export function retryBackoffMs(): number {
 export class MessageRejectedError extends Error {}
 
 /**
- * A failure no retry can fix: the message itself is wrong. A required field
- * it lacks, or a body that is not JSON, fails identically on every delivery.
+ * A failure no retry can fix: the message itself is wrong, such as a required
+ * field it lacks, which fails identically on every delivery.
+ *
+ * A body that is not JSON never reaches this code: Nest's RMQ server finds no
+ * event pattern in it and nacks it without requeue before any Worker handler
+ * runs. The broker suite (`test/broker.e2e-spec.ts`) proves it lands in
+ * `<queue>.dlq` on its first delivery. So a `SyntaxError` seen here is not about the message, and is
+ * treated as transient like any other error (ROB-09).
  */
 export function isPermanentFailure(error: unknown): boolean {
-  return error instanceof MessageRejectedError || error instanceof SyntaxError;
+  return error instanceof MessageRejectedError;
 }
 
 interface NackingChannel {
