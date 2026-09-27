@@ -1,4 +1,10 @@
 import { ProcessingCompletedDto } from './../src/messaging/dto/processing-completed.dto';
+import {
+  BeforeApplicationShutdown,
+  Injectable,
+  OnApplicationShutdown,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { RmqContext } from '@nestjs/microservices';
 import { AppModule } from './../src/app.module';
@@ -279,6 +285,88 @@ describe('Processing flow (e2e)', () => {
       settle.reject(new Error('ffmpeg killed by shutdown'));
       await handled;
 
+      expect(settled).toEqual([]);
+      expect(publisher.publishedTypes).toEqual(['ProcessingStarted']);
+    });
+  });
+
+  // ROB-06: the tests above release the packager only once close() has
+  // returned, so they pass whichever hook sets the flag. Here the job settles
+  // inside close() itself, from the first hook after onModuleDestroy: a flag
+  // set any later lets the job ack and publish its outcome.
+  describe('when the packager settles between onModuleDestroy and onApplicationShutdown', () => {
+    it('neither acks the message nor publishes ProcessingCompleted or ProcessingFailed', async () => {
+      let packagerCalled!: () => void;
+      const packagerReached = new Promise<void>((r) => (packagerCalled = r));
+      let releasePackager!: (key: string) => void;
+      const hookOrder: string[] = [];
+
+      // Test-only: finishes the held job from beforeApplicationShutdown and
+      // waits for it, so the job has settled before any later hook runs.
+      @Injectable()
+      class ReleaseInsideClose
+        implements
+          OnModuleDestroy,
+          BeforeApplicationShutdown,
+          OnApplicationShutdown
+      {
+        onModuleDestroy(): void {
+          hookOrder.push('onModuleDestroy');
+        }
+        async beforeApplicationShutdown(): Promise<void> {
+          hookOrder.push('beforeApplicationShutdown');
+          releasePackager('zips/req-1/attempt-1/frames.zip');
+          await handled;
+        }
+        onApplicationShutdown(): void {
+          hookOrder.push('onApplicationShutdown');
+        }
+      }
+
+      const moduleFixture: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+        providers: [ReleaseInsideClose],
+      })
+        .overrideProvider('EVENT_PUBLISHER')
+        .useValue(publisher)
+        .overrideProvider('DUPLICATE_CHECKER')
+        .useValue(duplicateChecker)
+        .overrideProvider('FRAME_PACKAGER')
+        .useValue({
+          packageFrames: () => {
+            packagerCalled();
+            return new Promise<string>(
+              (resolve) => (releasePackager = resolve),
+            );
+          },
+        })
+        .compile();
+      const app = moduleFixture.createNestApplication();
+      await app.init();
+      const settled: string[] = [];
+      const channel = {
+        ack: () => settled.push('ack'),
+        nack: () => settled.push('nack'),
+      };
+      const message = { content: Buffer.from(JSON.stringify(dto)) };
+      const ctx = new RmqContext([message, channel, 'ProcessingQueued']);
+
+      // Read by the hook only once close() runs, after this is assigned.
+      const handled = app
+        .get(ProcessingConsumer)
+        .handleProcessingQueued(dto, ctx)
+        .catch(() => undefined);
+      await packagerReached;
+      await app.close();
+
+      // The design's risk: this Nest version's hook order, logged once. The
+      // assertion also proves the release hook ran, so the test is not vacuous.
+      console.log(`Nest shutdown hook order: ${hookOrder.join(' -> ')}`);
+      expect(hookOrder).toEqual([
+        'onModuleDestroy',
+        'beforeApplicationShutdown',
+        'onApplicationShutdown',
+      ]);
       expect(settled).toEqual([]);
       expect(publisher.publishedTypes).toEqual(['ProcessingStarted']);
     });

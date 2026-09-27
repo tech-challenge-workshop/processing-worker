@@ -60,13 +60,15 @@ T3
 - Skill: NONE
 
 **Done when**:
-- [ ] The test passes, and moving the flag to `onApplicationShutdown` in a scratch copy fails it
-- [ ] The hook order is logged once in the test composition and recorded in the status note
-- [ ] The window note is in place
-- [ ] Full gate passes
+- [x] The test passes, and moving the flag to `onApplicationShutdown` in a scratch copy fails it
+- [x] The hook order is logged once in the test composition and recorded in the status note
+- [x] The window note is in place
+- [x] Full gate passes
 
 **Tests**: e2e
 **Gate**: full
+
+**Status**: ✅ Done. Observed hook order on `@nestjs/core` 11.2.3: `onModuleDestroy -> beforeApplicationShutdown -> onApplicationShutdown`, the order the design assumes. The test also asserts that order, so it cannot pass without the release hook running. Negative: with the flag set in `onApplicationShutdown`, only the new test fails (it acks and publishes `ProcessingCompleted`); spec A's two shutdown tests still pass, as V49 said. Gate: unit 165/165, e2e 57/57, none skipped.
 
 ---
 
