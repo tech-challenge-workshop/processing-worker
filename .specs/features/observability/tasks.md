@@ -335,9 +335,11 @@ T15
 
 **Done when**:
 
-- [ ] Unit: accepted and rejected paths increment exactly their label; inflight returns to 0 after both a success and a throw
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 5 new unit tests pass (no silent deletions)
+- [x] Unit: accepted and rejected paths increment exactly their label; inflight returns to 0 after both a success and a throw
+- [x] Gate check passes: `npm test`
+- [x] Test count: 5 new unit tests pass (no silent deletions)
+
+> Done with design.md's `workerMetrics.inflight('validation').track(fn)` shape (tasks.md's `inflight.track(queue, fn)` was the same idea). The outcome is counted after it is published and the message acked: a duplicate and a retried failed publication count nothing.
 
 **Tests**: unit
 **Gate**: quick
