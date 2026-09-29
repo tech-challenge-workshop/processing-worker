@@ -396,6 +396,8 @@ T15
 
 **Commit**: `feat(worker): expose metrics and the standardized liveness endpoint`
 
+**Follow-up commit (same task, own commit)**: `feat(worker): record http request metrics`. design.md lists the `fiapx_http_requests_total` counter but no task recorded into it. `HttpMetricsMiddleware` (ported from the Catalog) is bound by `ObservabilityModule` to every route and counts on response finish with `{method, route, status}`, the route being the matched template, never the raw path. Health and metrics are counted (they are only kept out of the access log), and a counting error never fails the request. 5 unit tests, run through the real `ObservabilityModule` so the wiring is covered. `SPEC_DEVIATION` in the middleware: nestjs-pino binds pino-http as an `all('{/*splat}')` route, so a request no controller matched carries that wildcard as `req.route`. The middleware reports it as `unmatched`. The API's and the Catalog's copies label such requests `{/*splat}`; their plain-express unit tests cannot see this.
+
 ---
 
 ### T15: Observability e2e sweep (real broker)

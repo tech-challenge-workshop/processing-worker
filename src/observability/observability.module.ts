@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { CorrelationContext, correlationContext } from './correlation-context';
+import { HttpMetricsMiddleware } from './http-metrics.middleware';
 import { buildRootLoggerConfig } from './logger.config';
 import { MetricsController } from './metrics.controller';
 
@@ -19,4 +20,10 @@ import { MetricsController } from './metrics.controller';
   controllers: [MetricsController],
   exports: [CorrelationContext],
 })
-export class ObservabilityModule {}
+export class ObservabilityModule implements NestModule {
+  // Every route, health and metrics included: they are counted, and only
+  // kept out of the access log.
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(HttpMetricsMiddleware).forRoutes('*');
+  }
+}
