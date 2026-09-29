@@ -1,5 +1,6 @@
 import { ModuleRef } from '@nestjs/core';
 import { of, throwError } from 'rxjs';
+import { correlationContext } from '../observability/correlation-context';
 import { ProcessingCompletedDto } from './dto/processing-completed.dto';
 import { VideoAcceptedDto } from './dto/video-accepted.dto';
 import {
@@ -114,5 +115,78 @@ describe('RabbitmqEventPublisher', () => {
     expect(
       clients[EVENT_ROUTES.ProcessingCompleted.client].emit,
     ).toHaveBeenCalledWith('ProcessingCompleted', processingCompleted);
+  });
+
+  describe('correlation id (OBS-32, OBS-33)', () => {
+    const emittedPayload = (type: WorkerEventType): Record<string, unknown> => {
+      const calls = clients[EVENT_ROUTES[type].client].emit.mock.calls as Array<
+        [string, Record<string, unknown>]
+      >;
+      const call = calls.find(
+        ([pattern]) => pattern === EVENT_ROUTES[type].pattern,
+      );
+      return call![1];
+    };
+
+    it('stamps the context id on every event type it emits', async () => {
+      await correlationContext.runWithCorrelation('w-7', async () => {
+        for (const type of WORKER_EVENT_TYPES) {
+          await publisher.publish(type, { ...videoAccepted });
+        }
+      });
+
+      for (const type of WORKER_EVENT_TYPES) {
+        expect(emittedPayload(type)).toEqual({
+          ...videoAccepted,
+          correlationId: 'w-7',
+        });
+      }
+    });
+
+    it('omits the field, rather than sending null, outside a correlation scope', async () => {
+      for (const type of WORKER_EVENT_TYPES) {
+        await publisher.publish(type, { ...videoAccepted });
+      }
+
+      for (const type of WORKER_EVENT_TYPES) {
+        expect(emittedPayload(type)).toEqual(videoAccepted);
+        expect('correlationId' in emittedPayload(type)).toBe(false);
+      }
+    });
+
+    it('reads the id at emit time, so concurrent scopes each stamp their own', async () => {
+      const emit = clients[EVENT_ROUTES.VideoAccepted.client].emit;
+      let releaseFirst!: () => void;
+      const firstMayPublish = new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+
+      const first = correlationContext.runWithCorrelation('w-1', async () => {
+        await firstMayPublish;
+        await publisher.publish('VideoAccepted', { ...videoAccepted });
+      });
+      const second = correlationContext.runWithCorrelation('w-2', async () => {
+        await publisher.publish('VideoAccepted', { ...videoAccepted });
+        releaseFirst();
+      });
+      await Promise.all([first, second]);
+
+      expect(
+        emit.mock.calls.map(
+          ([, payload]) => (payload as Record<string, unknown>).correlationId,
+        ),
+      ).toEqual(['w-2', 'w-1']);
+    });
+
+    it('lets the context id win over one a caller put on the event', async () => {
+      await correlationContext.runWithCorrelation('w-7', () =>
+        publisher.publish('VideoAccepted', {
+          ...videoAccepted,
+          correlationId: 'stale',
+        }),
+      );
+
+      expect(emittedPayload('VideoAccepted').correlationId).toBe('w-7');
+    });
   });
 });

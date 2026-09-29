@@ -220,9 +220,9 @@ T15
 
 **Done when**:
 
-- [ ] Unit: with a context id set, every emitted DTO carries it; without a context, the field is absent
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 4 new unit tests pass (no silent deletions)
+- [x] Unit: with a context id set, every emitted DTO carries it; without a context, the field is absent
+- [x] Gate check passes: `npm test`
+- [x] Test count: 4 new unit tests pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
