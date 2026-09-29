@@ -174,9 +174,9 @@ T15
 
 **Done when**:
 
-- [ ] All five DTOs accept/carry the optional field (typecheck + family unit test via the index export)
-- [ ] Gate check passes: `npm run typecheck && npm test`
-- [ ] Test count: 1 new unit test passes (no silent deletions)
+- [x] All five DTOs accept/carry the optional field (typecheck + family unit test via the index export)
+- [x] Gate check passes: `npm run typecheck && npm test`
+- [x] Test count: 1 new unit test passes (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
