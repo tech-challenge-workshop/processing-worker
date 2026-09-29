@@ -108,7 +108,7 @@ T15
 - [x] Log lines single JSON with `service: 'processing-worker'` and the ALS correlation id
 - [x] Redaction covers storage keys in nested objects (the S6 no-key rule now structural)
 - [x] Gate check passes: `npm test`
-- [x] Test count: 7 new unit tests pass (no silent deletions)
+- [x] Test count: 8 new unit tests pass (planned 7; the design's HTTP counter gets its own test)
 
 **Tests**: unit
 **Gate**: quick
@@ -312,9 +312,9 @@ T15
 
 **Done when**:
 
-- [ ] Unit: families/labels per spec; reset works; gauge helpers `inflight.track(queue, fn)` release on throw (L-009 — release asserted, not just exclusion)
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 7 new unit tests pass (no silent deletions)
+- [x] Unit: families/labels per spec; reset works; gauge helpers `inflight.track(queue, fn)` release on throw (L-009 — release asserted, not just exclusion)
+- [x] Gate check passes: `npm test`
+- [x] Test count: 8 new unit tests pass (planned 7; the design's HTTP counter gets its own test)
 
 **Tests**: unit
 **Gate**: quick
