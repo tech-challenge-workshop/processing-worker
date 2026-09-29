@@ -116,12 +116,12 @@ The Worker is where RF-1 either happens or doesn't, yet today there is no metric
 | OBS-34 | P1: correlationId (fallback) | T1, T8, T15 | Execute | Implemented (T1, T8); e2e proof in T15 |
 | OBS-35 | P1: structured logs (JSON shape) | T2, T3, T4, T15 | Execute | Implemented (T2-T4); e2e proof in T15 |
 | OBS-36 | P1: structured logs (no storage keys) | T2, T15 | Execute | Implemented (T2); e2e proof in T15 |
-| OBS-37 | P2: Metrics (exposition set) | T11, T12, T14, T15 | Execute | In progress (T11, T12 done) |
+| OBS-37 | P2: Metrics (exposition set) | T11, T12, T14, T15 | Execute | Implemented (T11, T12, T14); e2e proof in T15 |
 | OBS-38 | P2: Metrics (validation outcome) | T11, T12, T15 | Execute | Implemented (T11, T12); e2e proof in T15 |
 | OBS-39 | P2: Metrics (processing outcome + duration) | T11, T13, T15 | Execute | Implemented (T11, T13); e2e proof in T15 |
 | OBS-40 | P2: Metrics (inflight gauge) | T11, T12, T13, T15 | Execute | Implemented (T11-T13); e2e proof in T15 |
-| OBS-41 | P2: Health (not-ready on broker loss) | T14, T15 | Tasks | Pending |
-| OBS-42 | P2: Health/Metrics (no auth, no noise) | T2, T14, T15 | Tasks | Pending |
+| OBS-41 | P2: Health (not-ready on broker loss) | T14, T15 | Execute | Implemented (T14); e2e proof in T15 |
+| OBS-42 | P2: Health/Metrics (no auth, no noise) | T2, T14, T15 | Execute | Implemented (T2, T14); e2e proof in T15 |
 
 **ID format:** `OBS-[NUMBER]` — `fiap-x-api` owns OBS-01..15; `processing-catalog` OBS-16..30; this repo owns OBS-31..45; `notification-service` OBS-46..60; `fiap-x-platform` OBS-61..75.
 

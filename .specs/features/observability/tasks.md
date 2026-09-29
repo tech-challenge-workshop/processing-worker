@@ -385,9 +385,11 @@ T15
 
 **Done when**:
 
-- [ ] Unit + e2e (T15): both endpoints respond as specified; no in-repo `/live` references remain
-- [ ] Gate check passes: `npm test && npm run test:e2e`
-- [ ] Test count: 3 new unit tests pass (no silent deletions)
+- [x] Unit + e2e (T15): both endpoints respond as specified; no in-repo `/live` references remain
+- [x] Gate check passes: `npm test && npm run test:e2e`
+- [x] Test count: 3 new unit tests pass (no silent deletions)
+
+> `/health/live` was already mapped (`@Controller('health')` + `@Get('live')`) and readiness already answered 503 on broker loss, so the health side needed no code change: a unit test pins `/health` 503, `/health/live` 200 and a bare `/live` 404. `MetricsController` lives in `src/observability/metrics.controller.ts` (design.md's location) and is registered by `ObservabilityModule`; it pins `Content-Type: text/plain; version=0.0.4` exactly, like the Catalog. The HTTP request counter is wired in its own commit (below).
 
 **Tests**: unit
 **Gate**: full
