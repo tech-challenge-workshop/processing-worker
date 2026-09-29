@@ -7,6 +7,7 @@ import {
   MessageRejectedError,
   settleFailedMessage,
 } from '../messaging/settle-failed-message';
+import { withMessageCorrelation } from '../messaging/with-correlation';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
 import { VideoAcceptedDto } from '../messaging/dto/video-accepted.dto';
 import { VideoRejectedDto } from '../messaging/dto/video-rejected.dto';
@@ -36,32 +37,36 @@ export class ValidationConsumer {
     @Payload() dto: VideoValidationRequestedDto,
     @Ctx() ctx?: RmqContext,
   ): Promise<void> {
-    try {
-      await this.processVideoValidationRequested(dto);
-      if (ctx) {
-        const channel = ctx.getChannelRef() as {
-          ack: (message: unknown) => void;
-          nack: (
-            message: unknown,
-            allUpTo?: boolean,
-            requeue?: boolean,
-          ) => void;
-        };
-        channel.ack(ctx.getMessage());
+    // The whole handling, settlement included, runs in the message's
+    // correlation scope (OBS-31): its logs and outcome events carry the id.
+    return withMessageCorrelation(dto, async () => {
+      try {
+        await this.processVideoValidationRequested(dto);
+        if (ctx) {
+          const channel = ctx.getChannelRef() as {
+            ack: (message: unknown) => void;
+            nack: (
+              message: unknown,
+              allUpTo?: boolean,
+              requeue?: boolean,
+            ) => void;
+          };
+          channel.ack(ctx.getMessage());
+        }
+      } catch (err) {
+        if (ctx) {
+          const channel = ctx.getChannelRef() as {
+            nack: (
+              message: unknown,
+              allUpTo?: boolean,
+              requeue?: boolean,
+            ) => void;
+          };
+          await settleFailedMessage(channel, ctx.getMessage(), err);
+        }
+        throw err;
       }
-    } catch (err) {
-      if (ctx) {
-        const channel = ctx.getChannelRef() as {
-          nack: (
-            message: unknown,
-            allUpTo?: boolean,
-            requeue?: boolean,
-          ) => void;
-        };
-        await settleFailedMessage(channel, ctx.getMessage(), err);
-      }
-      throw err;
-    }
+    });
   }
 
   private async processVideoValidationRequested(

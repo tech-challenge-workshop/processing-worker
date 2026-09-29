@@ -266,9 +266,9 @@ T15
 
 **Done when**:
 
-- [ ] Unit: consumed message with `w-7` republishes `VideoAccepted` carrying `w-7`; without the field, a generated id flows (asserted via the fake publisher)
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 4 new unit tests pass (no silent deletions)
+- [x] Unit: consumed message with `w-7` republishes `VideoAccepted` carrying `w-7`; without the field, a generated id flows (asserted via the fake publisher)
+- [x] Gate check passes: `npm test`
+- [x] Test count: 4 new unit tests pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
