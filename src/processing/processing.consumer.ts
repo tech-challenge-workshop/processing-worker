@@ -7,6 +7,10 @@ import {
   settleFailedMessage,
 } from '../messaging/settle-failed-message';
 import { withMessageCorrelation } from '../messaging/with-correlation';
+import {
+  type ProcessingOutcome,
+  workerMetrics,
+} from '../observability/metrics';
 import { ProcessingCompletedDto } from '../messaging/dto/processing-completed.dto';
 import { ProcessingQueuedDto } from '../messaging/dto/processing-queued.dto';
 import { ProcessingStartedDto } from '../messaging/dto/processing-started.dto';
@@ -44,38 +48,55 @@ export class ProcessingConsumer {
   ): Promise<void> {
     // The whole handling runs in the message's correlation scope (OBS-31),
     // whatever the settlement: ack, nack, or left for redelivery on shutdown.
-    // The scope closes when the handler settles.
-    return withMessageCorrelation(dto, async () => {
-      try {
-        const outcome = await this.processProcessingQueued(dto);
-        if (outcome === 'left-for-redelivery') {
-          return;
-        }
-        if (ctx) {
-          const channel = ctx.getChannelRef() as {
-            ack: (message: unknown) => void;
-            nack: (
-              message: unknown,
-              allUpTo?: boolean,
-              requeue?: boolean,
-            ) => void;
-          };
-          channel.ack(ctx.getMessage());
-        }
-      } catch (err) {
-        if (ctx) {
-          const channel = ctx.getChannelRef() as {
-            nack: (
-              message: unknown,
-              allUpTo?: boolean,
-              requeue?: boolean,
-            ) => void;
-          };
-          await settleFailedMessage(channel, ctx.getMessage(), err);
-        }
-        throw err;
+    // The scope closes when the handler settles. The job counts as in flight
+    // on the processing queue until then, on every path (OBS-40).
+    return withMessageCorrelation(dto, () =>
+      workerMetrics.inflight('processing').track(() => this.handle(dto, ctx)),
+    );
+  }
+
+  private async handle(
+    dto: ProcessingQueuedDto,
+    ctx?: RmqContext,
+  ): Promise<void> {
+    const startedAt = process.hrtime.bigint();
+    try {
+      const outcome = await this.processProcessingQueued(dto);
+      if (outcome === 'left-for-redelivery') {
+        return;
       }
-    });
+      if (ctx) {
+        const channel = ctx.getChannelRef() as {
+          ack: (message: unknown) => void;
+          nack: (
+            message: unknown,
+            allUpTo?: boolean,
+            requeue?: boolean,
+          ) => void;
+        };
+        channel.ack(ctx.getMessage());
+      }
+      // Counted with its duration once the outcome is published and the
+      // message acked (OBS-39). A duplicate, a job left for redelivery and a
+      // retried failed publication are not outcomes.
+      if (outcome !== 'duplicate') {
+        const elapsedSeconds =
+          Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+        workerMetrics.recordProcessing(outcome, elapsedSeconds);
+      }
+    } catch (err) {
+      if (ctx) {
+        const channel = ctx.getChannelRef() as {
+          nack: (
+            message: unknown,
+            allUpTo?: boolean,
+            requeue?: boolean,
+          ) => void;
+        };
+        await settleFailedMessage(channel, ctx.getMessage(), err);
+      }
+      throw err;
+    }
   }
 
   // 'left-for-redelivery': the app began shutting down while the job ran. No
@@ -83,7 +104,7 @@ export class ProcessingConsumer {
   // so the broker redelivers it once this connection is gone (MSG-14).
   private async processProcessingQueued(
     dto: ProcessingQueuedDto,
-  ): Promise<'settled' | 'left-for-redelivery'> {
+  ): Promise<ProcessingOutcome | 'duplicate' | 'left-for-redelivery'> {
     if (!dto.processingRequestId || !dto.attemptId) {
       throw new ProcessingRejectedError(
         'processingRequestId and attemptId are required in ProcessingQueued',
@@ -92,7 +113,7 @@ export class ProcessingConsumer {
 
     const isDuplicate = await this.duplicateChecker.isDuplicate(dto.eventId);
     if (isDuplicate) {
-      return 'settled';
+      return 'duplicate';
     }
 
     const started: ProcessingStartedDto = {
@@ -144,7 +165,7 @@ export class ProcessingConsumer {
       }
 
       await this.duplicateChecker.mark(dto.eventId);
-      return 'settled';
+      return 'failed';
     }
 
     const completed: ProcessingCompletedDto = {
@@ -164,6 +185,6 @@ export class ProcessingConsumer {
     }
 
     await this.duplicateChecker.mark(dto.eventId);
-    return 'settled';
+    return 'completed';
   }
 }

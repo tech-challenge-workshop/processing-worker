@@ -360,9 +360,11 @@ T15
 
 **Done when**:
 
-- [ ] Unit: completed and failed paths increment + observe exactly once each; inflight returns to 0 after a throw (L-009)
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 5 new unit tests pass (no silent deletions)
+- [x] Unit: completed and failed paths increment + observe exactly once each; inflight returns to 0 after a throw (L-009)
+- [x] Gate check passes: `npm test`
+- [x] Test count: 5 new unit tests pass (no silent deletions)
+
+> No timestamp was captured at handler start before this task; the handler now takes one (`process.hrtime.bigint()`) inside the inflight scope and observes the elapsed time after the ack. A job left for redelivery on shutdown, a duplicate, and a retried failed publication count no outcome and observe no duration; the gauge is released on all of them (the shutdown path has its own test).
 
 **Tests**: unit
 **Gate**: quick
