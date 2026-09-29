@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 7,
+  "next_id": 14,
   "lessons": [
     {
       "id": "L-001",
@@ -112,6 +112,132 @@
       ],
       "created": "2026-09-27T01:18:11Z",
       "last_seen": "2026-09-27T01:18:11Z"
+    },
+    {
+      "id": "L-007",
+      "key": "ac_gap::prove log line content through the app s real logger wiring shared context store and bootstrap logger not only on a logger the test builds itself",
+      "text": "Prove log-line content through the app's real logger wiring (shared context store and bootstrap logger), not only on a logger the test builds itself",
+      "signal": "ac_gap",
+      "scope": "logging",
+      "status": "candidate",
+      "features": [
+        "observability"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "OBS-35; src/observability/observability.module.ts:14 (M14); src/main.ts:14 (M15) (logging)"
+      ],
+      "created": "2026-09-29T02:11:06Z",
+      "last_seen": "2026-09-29T02:11:06Z"
+    },
+    {
+      "id": "L-008",
+      "key": "surviving_mutant::prove log line content through the app s real logger wiring shared context store and bootstrap logger not only on a logger the test builds itself",
+      "text": "Prove log-line content through the app's real logger wiring (shared context store and bootstrap logger), not only on a logger the test builds itself",
+      "signal": "surviving_mutant",
+      "scope": "logging",
+      "status": "candidate",
+      "features": [
+        "observability"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M14 observability.module.ts:14; M15 main.ts:14 (logging)"
+      ],
+      "created": "2026-09-29T02:11:06Z",
+      "last_seen": "2026-09-29T02:11:06Z"
+    },
+    {
+      "id": "L-009",
+      "key": "ac_gap::key path log redaction does not cover values interpolated into message strings keep secrets out of error messages and assert on a real log call site",
+      "text": "Key-path log redaction does not cover values interpolated into message strings; keep secrets out of error messages and assert on a real log call site",
+      "signal": "ac_gap",
+      "scope": "logging",
+      "status": "candidate",
+      "features": [
+        "observability"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "OBS-36; src/storage/s3-object-storage.ts:80; M16 processing.consumer.ts:144 (logging)"
+      ],
+      "created": "2026-09-29T02:11:06Z",
+      "last_seen": "2026-09-29T02:11:06Z"
+    },
+    {
+      "id": "L-010",
+      "key": "spec_precision_gap::spec edge cases must name only metrics the design actually emits reconcile the wording when the design drops a metric",
+      "text": "Spec edge cases must name only metrics the design actually emits; reconcile the wording when the design drops a metric",
+      "signal": "spec_precision_gap",
+      "scope": "metrics",
+      "status": "candidate",
+      "features": [
+        "observability"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "OBS-39 + Edge case 1 (consumed counter not in design) (metrics)"
+      ],
+      "created": "2026-09-29T02:11:06Z",
+      "last_seen": "2026-09-29T02:11:06Z"
+    },
+    {
+      "id": "L-011",
+      "key": "spec_precision_gap::when a spec exempts endpoints from access logging state how paths are matched exact prefix query string",
+      "text": "When a spec exempts endpoints from access logging, state how paths are matched (exact, prefix, query string)",
+      "signal": "spec_precision_gap",
+      "scope": "logging",
+      "status": "candidate",
+      "features": [
+        "observability"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "OBS-42; src/observability/logger.config.ts:53-56 (logging)"
+      ],
+      "created": "2026-09-29T02:11:06Z",
+      "last_seen": "2026-09-29T02:11:06Z"
+    },
+    {
+      "id": "L-012",
+      "key": "ac_gap::redact or strip identifiers that library errors carry as properties e g s3 sdk key resource since logging an error object serializes every enumerable field",
+      "text": "Redact or strip identifiers that library errors carry as properties (e.g. S3 SDK Key/Resource), since logging an error object serializes every enumerable field",
+      "signal": "ac_gap",
+      "scope": "logging",
+      "status": "candidate",
+      "features": [
+        "observability"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "OBS-36; probe P1: RpcExceptionsHandler err.Key/err.Resource from S3 SDK error; src/observability/logger.config.ts:24-36 (logging)"
+      ],
+      "created": "2026-09-29T02:34:02Z",
+      "last_seen": "2026-09-29T02:34:02Z"
+    },
+    {
+      "id": "L-013",
+      "key": "surviving_mutant::when tests override a production default through an injection seam add one check that the default still reaches its real target",
+      "text": "When tests override a production default through an injection seam, add one check that the default still reaches its real target",
+      "signal": "surviving_mutant",
+      "scope": "testing",
+      "status": "candidate",
+      "features": [
+        "observability"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M17 src/observability/observability.module.ts:18 (default LOG_DESTINATION) (testing)"
+      ],
+      "created": "2026-09-29T02:34:02Z",
+      "last_seen": "2026-09-29T02:34:02Z"
     }
   ]
 }
