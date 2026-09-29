@@ -11,6 +11,7 @@
       { "tsconfig": { "allowJs": true, "module": "commonjs", "isolatedModules": true } }
     ]
   },
+  "setupFiles": ["<rootDir>/support/quiet-logs.setup.ts"],
   "transformIgnorePatterns": [
     "/node_modules/(?!(archiver|zip-stream|compress-commons|crc32-stream|is-stream)/)"
   ]

@@ -120,6 +120,9 @@ describe('Bounded work in flight (e2e)', () => {
         return { status: of('disconnected') };
       },
       get: () => ({ setConnected: () => undefined }),
+      // main.ts swaps in the pino logger; the fake only has to accept it.
+      useLogger: () => undefined,
+      flushLogs: () => undefined,
       startAllMicroservices: () => Promise.resolve(),
       listen: () => {
         listened();

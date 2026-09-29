@@ -151,9 +151,9 @@ T15
 
 **Done when**:
 
-- [ ] Boot emits JSON logs across HTTP and microservice paths
-- [ ] Gate check passes: `npm run lint && npm run typecheck && npm run build`
-- [ ] Test count: no new tests (wiring layer - matrix; e2e in T15)
+- [x] Boot emits JSON logs across HTTP and microservice paths
+- [x] Gate check passes: `npm run lint && npm run typecheck && npm run build`
+- [x] Test count: no new tests (wiring layer - matrix; e2e in T15)
 
 **Tests**: none
 **Gate**: build
