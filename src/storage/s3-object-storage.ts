@@ -77,7 +77,9 @@ export class S3ObjectStorage implements ObjectStorage {
       new GetObjectCommand({ Bucket: this.bucket, Key: key }),
     );
     if (!(response.Body instanceof Readable)) {
-      throw new Error(`Object ${key} has no readable body`);
+      // The key stays out of the message: the consumer rethrows this and it
+      // is logged, and a log line never carries a storage key (OBS-36).
+      throw new Error('Source object has no readable body');
     }
     // Streamed straight to disk: a 500 MB source is never held in memory.
     await pipeline(response.Body, createWriteStream(destinationPath));

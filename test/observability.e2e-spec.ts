@@ -5,6 +5,8 @@ import amqp, {
   ChannelWrapper,
 } from 'amqp-connection-manager';
 import { createServer, connect, Server, Socket } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import './support/outcome-broker-url';
@@ -16,6 +18,8 @@ import { VideoValidationRequestedDto } from './../src/messaging/dto/video-valida
 import { LOG_DESTINATION } from './../src/observability/logger.config';
 import { workerMetrics } from './../src/observability/metrics';
 import { FramePackager } from './../src/processing/frame-packager.interface';
+import { InMemoryObjectStorage } from './../src/storage/in-memory-object-storage';
+import { S3ObjectStorage } from './../src/storage/s3-object-storage';
 import { brokerSuiteMode } from './../src/testing/broker-guard';
 import { InMemoryDuplicateChecker } from './../src/validation/in-memory-duplicate-checker';
 import { VideoValidator } from './../src/validation/video-validator.interface';
@@ -93,15 +97,30 @@ describeBroker('Observability against a real RabbitMQ', () => {
   // stream reads this binding rather than holding one array.
   let logLines: string[] = [];
 
+  // The storage adapters' own download failures: an S3 object without a
+  // readable body, and an in-memory key with no object.
+  const unreadableS3 = new S3ObjectStorage(
+    { send: () => Promise.resolve({ Body: undefined }) },
+    'fiapx',
+  );
+  const emptyMemory = new InMemoryObjectStorage();
+  const neverWritten = join(tmpdir(), 'obs-e2e-never-written');
+
   // Accepts or rejects, completes or fails, by the request id, so one run
-  // can produce all four outcomes.
+  // can produce all four outcomes. `unreadable-` and `missing-` jobs fail in
+  // the storage adapter, as a real download would.
   const validator: VideoValidator = {
-    validate: (dto) =>
-      Promise.resolve(
-        dto.processingRequestId.startsWith('reject')
-          ? { accepted: false, failureCode: 'FORMATO_INVALIDO' }
-          : { accepted: true },
-      ),
+    validate: async (dto) => {
+      if (dto.processingRequestId.startsWith('unreadable')) {
+        await unreadableS3.download(dto.sourceStorageKey, neverWritten);
+      }
+      if (dto.processingRequestId.startsWith('missing')) {
+        await emptyMemory.download(dto.sourceStorageKey, neverWritten);
+      }
+      return dto.processingRequestId.startsWith('reject')
+        ? { accepted: false, failureCode: 'FORMATO_INVALIDO' }
+        : { accepted: true };
+    },
   };
   // A `hold-` job waits in the packager until the test releases it, so the
   // app can begin shutting down while the job is in flight.
@@ -482,6 +501,13 @@ describeBroker('Observability against a real RabbitMQ', () => {
     const parsed = (): Array<Record<string, unknown>> =>
       logLines.map((line) => JSON.parse(line) as Record<string, unknown>);
 
+    const queueDepth = async (queue: string): Promise<number> => {
+      const reply = (await channel.checkQueue(queue)) as {
+        messageCount: number;
+      };
+      return reply.messageCount;
+    };
+
     const expectEveryLineStructured = (): void => {
       expect(logLines.length).toBeGreaterThan(0);
       for (const line of parsed()) {
@@ -514,6 +540,11 @@ describeBroker('Observability against a real RabbitMQ', () => {
           }),
         );
         await entered;
+        // The same job republished the consumed id before the packager ran.
+        expect(await nextOutcome('processing.started')).toMatchObject({
+          processingRequestId: 'hold-1',
+          correlationId: 'w-7',
+        });
         // The app shuts down while the job is in the packager; released
         // after, the job logs its left-for-redelivery warning inside the
         // message's scope.
@@ -530,13 +561,10 @@ describeBroker('Observability against a real RabbitMQ', () => {
           (lines) => lines.length > 0,
         );
         // The unacked message went back to the queue with the connection.
-        const ready = async (): Promise<number> => {
-          const reply = (await channel.checkQueue(PROCESSING_QUEUE)) as {
-            messageCount: number;
-          };
-          return reply.messageCount;
-        };
-        await eventually(ready, (n) => n === 1);
+        await eventually(
+          () => queueDepth(PROCESSING_QUEUE),
+          (n) => n === 1,
+        );
         await channel.purgeQueue(PROCESSING_QUEUE);
 
         expectEveryLineStructured();
@@ -546,6 +574,54 @@ describeBroker('Observability against a real RabbitMQ', () => {
           context: 'ProcessingConsumer',
           correlationId: 'w-7',
         });
+        expect(logLines.join('\n')).not.toContain('secret-key');
+      },
+      TEST_TIMEOUT_MS,
+    );
+
+    it(
+      'keeps the storage key out of the lines logged when storage fails a job',
+      async () => {
+        await startWorker();
+
+        for (const processingRequestId of ['unreadable-1', 'missing-1']) {
+          await send(
+            VALIDATION_QUEUE,
+            'VideoValidationRequested',
+            validationRequested({
+              processingRequestId,
+              sourceStorageKey: 'sources/secret-key.mp4',
+              correlationId: 'w-9',
+            }),
+          );
+        }
+        const storageErrors = (): string[] =>
+          logLines.filter((line) =>
+            /has no readable body|has no object/.test(line),
+          );
+        // Both failures reached the log (each is retried, so it may repeat).
+        const logged = await eventually(
+          () => Promise.resolve(storageErrors()),
+          (lines) =>
+            lines.some((line) => line.includes('has no readable body')) &&
+            lines.some((line) => line.includes('has no object')),
+        );
+        await app!.close();
+        app = undefined;
+        // Both transient failures were requeued; nothing else consumes them.
+        await eventually(
+          () => queueDepth(VALIDATION_QUEUE),
+          (n) => n === 2,
+        );
+        await channel.purgeQueue(VALIDATION_QUEUE);
+
+        expect(
+          logged.some((line) => line.includes('has no readable body')),
+        ).toBe(true);
+        expect(logged.some((line) => line.includes('has no object'))).toBe(
+          true,
+        );
+        expectEveryLineStructured();
         expect(logLines.join('\n')).not.toContain('secret-key');
       },
       TEST_TIMEOUT_MS,

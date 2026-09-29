@@ -90,7 +90,7 @@ graph TD
 
 - **Purpose**: OBS-35/36 — JSON logs, correlation id, no storage keys.
 - **Location**: `src/observability/logger.config.ts`
-- **Interfaces**: ALS mixin; `redact` covers `*.sourceStorageKey`, `*.zipStorageKey`, `*.url` (defensive), plus the shared auth/email paths; storage keys continue to never be logged at any level — the spec assertion e2e from S6 keeps guarding this.
+- **Interfaces**: ALS mixin; `redact` covers `*.sourceStorageKey`, `*.zipStorageKey`, `*.url` (defensive), plus the shared auth/email paths; storage keys continue to never be logged at any level, message strings included — `test/observability.e2e-spec.ts` guards this on the Worker's own logger wiring (post-verification F1/F2).
 - **Reuses**: nestjs-pino
 
 ---

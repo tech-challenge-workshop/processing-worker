@@ -110,12 +110,12 @@ The Worker is where RF-1 either happens or doesn't, yet today there is no metric
 
 | Requirement ID | Story | Tasks | Phase | Status |
 | --- | --- | --- | --- | --- |
-| OBS-31 | P1: correlationId (consume context) | T1, T6, T8, T9, T10, T15 | Execute | Implemented (T1, T6, T8, T9, T10); e2e proven (T15) |
+| OBS-31 | P1: correlationId (consume context) | T1, T6, T8, T9, T10, T15, F1 | Execute | Implemented (T1, T6, T8, T9, T10); e2e proven (T15; log join F1) |
 | OBS-32 | P1: correlationId (validation outcomes) | T5, T7, T9, T15 | Execute | Implemented (T5, T7, T9); e2e proven (T15) |
 | OBS-33 | P1: correlationId (processing outcomes) | T5, T7, T10, T15 | Execute | Implemented (T5, T7, T10); e2e proven (T15) |
 | OBS-34 | P1: correlationId (fallback) | T1, T8, T15 | Execute | Implemented (T1, T8); e2e proven (T15) |
-| OBS-35 | P1: structured logs (JSON shape) | T2, T3, T4, T15 | Execute | Implemented (T2-T4); T15 e2e runs with the logger, log content proven by T2 unit tests |
-| OBS-36 | P1: structured logs (no storage keys) | T2, T15 | Execute | Implemented (T2); T15 e2e runs with the logger, log content proven by T2 unit tests |
+| OBS-35 | P1: structured logs (JSON shape) | T2, T3, T4, T15, F1 | Execute | Implemented (T2-T4); e2e proven through the Worker's logger wiring (F1) |
+| OBS-36 | P1: structured logs (no storage keys) | T2, T15, F1, F2 | Execute | Implemented (T2, F2); e2e proven on job log lines (F1, F2) |
 | OBS-37 | P2: Metrics (exposition set) | T11, T12, T14, T15 | Execute | Implemented (T11, T12, T14); e2e proven (T15) |
 | OBS-38 | P2: Metrics (validation outcome) | T11, T12, T15 | Execute | Implemented (T11, T12); e2e proven (T15) |
 | OBS-39 | P2: Metrics (processing outcome + duration) | T11, T13, T15 | Execute | Implemented (T11, T13); e2e proven (T15) |
@@ -131,6 +131,6 @@ The Worker is where RF-1 either happens or doesn't, yet today there is no metric
 
 ## Success Criteria
 
-- [ ] A job consumed with `correlationId: w-7` republishes that id on its outcome event, with matching log lines in between, provable on a real broker. (Republish proven on the broker by T15; the log-line half is proven by the T2 unit tests only, not on the broker.)
+- [x] A job consumed with `correlationId: w-7` republishes that id on its outcome event, with matching log lines in between, provable on a real broker. (Republish proven on the broker by T15; the log line a job writes inside its scope carries the same id on the broker (F1).)
 - [x] After the four-outcome broker test, `/metrics` shows exactly 4 outcome increments, ≥1 duration observation, and zero inflight.
 - [x] With the broker stopped: `/health` 503, `/health/live` 200, `/metrics` 200.

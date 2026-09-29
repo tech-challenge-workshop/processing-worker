@@ -425,6 +425,40 @@ T15
 
 ---
 
+## Post-verification fixes
+
+Validation round 1 (`validation.md`, FAIL) found OBS-35/OBS-36 proven only on a logger the unit test builds itself; mutants M14 (logger on a private `CorrelationContext`), M15 (`useLogger` removed) and M16 (storage key in a job log message) survived every suite.
+
+### F1: Prove the Worker's own logger wiring (OBS-31, OBS-35)
+
+**What**: `LOG_DESTINATION` provider (null = pino's stdout) read by the `LoggerModule.forRootAsync` factory; `configureApp(app, consumers?)` holds main.ts's composition (`useLogger`, both consumers, readiness binding) and the observability broker suite calls it instead of its mirrored `bindReadiness`. The suite logs at `info` into a capture stream. New e2e: a `ProcessingQueued` with `correlationId: w-7` republishes it on `ProcessingStarted`, the app shuts down mid-job, and the consumer's left-for-redelivery warning (logged inside the scope) carries `correlationId: 'w-7'`; every captured line is JSON with `timestamp`, `level`, `msg`, `service: 'processing-worker'`, and none contains the source key.
+**Where**: `src/configure-app.ts`, `src/main.ts`, `src/observability/logger.config.ts`, `src/observability/observability.module.ts`, `test/observability.e2e-spec.ts`
+**Requirement**: OBS-31, OBS-35
+
+**Done when**:
+
+- [x] M14 and M15 killed (re-run in scratch worktrees)
+- [x] Gate passes
+
+**Commits**: `refactor(worker): share app composition, make the log sink injectable`, `test(worker): prove worker log lines carry the correlation id`
+
+### F2: Keep storage keys out of error messages (OBS-36)
+
+**What**: `S3ObjectStorage.download` and `InMemoryObjectStorage.download` no longer put the key in their error message (the consumer rethrows it and Nest's `RpcExceptionsHandler` logs message and stack). New e2e: two validations with `sourceStorageKey: 'sources/secret-key.mp4'` fail in the real adapters' download paths; the error lines are logged and no captured line contains `secret-key`. Unit tests on both adapters assert the message names no key.
+**Where**: `src/storage/s3-object-storage.ts`, `src/storage/in-memory-object-storage.ts` (+ specs), `test/observability.e2e-spec.ts`
+**Requirement**: OBS-36
+
+**Done when**:
+
+- [x] M16 killed (key in the shutdown warning, and key restored in the error message)
+- [x] Gate passes: unit 237 -> 238, e2e 64 -> 66 passed, the 2 pre-existing S3 skips unchanged
+
+**Commit**: `fix(worker): keep storage keys out of error messages`
+
+Also: `pino` and `pino-http` declared as direct dependencies (`build(worker): declare pino and pino-http as direct dependencies`).
+
+Open observation: a line Nest's `RpcExceptionsHandler` logs for a thrown handler error is written after the correlation scope has closed, so it carries no `correlationId` (seen in the F2 capture). OBS-35's "current `correlationId`" is absent there because no scope is current; not changed here.
+
 ## Phase Execution Map
 
 ```

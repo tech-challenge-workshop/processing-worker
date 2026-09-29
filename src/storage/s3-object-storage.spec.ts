@@ -104,6 +104,21 @@ describe('S3ObjectStorage', () => {
     await expect(storage.head('sources/a.mp4')).rejects.toBe(unreachable);
   });
 
+  it('rejects a download without a readable body, naming no key (OBS-36)', async () => {
+    const storage = new S3ObjectStorage(
+      sender(() => Promise.resolve({ Body: undefined })),
+      'fiapx',
+    );
+
+    const failure = storage.download(
+      'sources/secret-key.mp4',
+      join(dir, 'never.mp4'),
+    );
+
+    await expect(failure).rejects.toThrow('Source object has no readable body');
+    await expect(failure).rejects.not.toThrow('secret-key');
+  });
+
   it('streams a download to disk as it arrives, without waiting for the whole body', async () => {
     // The body yields one chunk, then holds the rest until the test has seen
     // that chunk on disk. An adapter that buffered the whole object before
