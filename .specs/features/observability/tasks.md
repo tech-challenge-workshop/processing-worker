@@ -197,9 +197,9 @@ T15
 
 **Done when**:
 
-- [ ] Both DTOs carry the optional field
-- [ ] Gate check passes: `npm run typecheck && npm test`
-- [ ] Test count: 1 new unit test passes (no silent deletions)
+- [x] Both DTOs carry the optional field
+- [x] Gate check passes: `npm run typecheck && npm test`
+- [x] Test count: 1 new unit test passes (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
