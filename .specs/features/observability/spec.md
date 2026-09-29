@@ -110,18 +110,18 @@ The Worker is where RF-1 either happens or doesn't, yet today there is no metric
 
 | Requirement ID | Story | Tasks | Phase | Status |
 | --- | --- | --- | --- | --- |
-| OBS-31 | P1: correlationId (consume context) | T1, T6, T8, T9, T10, T15 | Execute | Implemented (T1, T6, T8, T9, T10); e2e proof in T15 |
-| OBS-32 | P1: correlationId (validation outcomes) | T5, T7, T9, T15 | Execute | Implemented (T5, T7, T9); e2e proof in T15 |
-| OBS-33 | P1: correlationId (processing outcomes) | T5, T7, T10, T15 | Execute | Implemented (T5, T7, T10); e2e proof in T15 |
-| OBS-34 | P1: correlationId (fallback) | T1, T8, T15 | Execute | Implemented (T1, T8); e2e proof in T15 |
-| OBS-35 | P1: structured logs (JSON shape) | T2, T3, T4, T15 | Execute | Implemented (T2-T4); e2e proof in T15 |
-| OBS-36 | P1: structured logs (no storage keys) | T2, T15 | Execute | Implemented (T2); e2e proof in T15 |
-| OBS-37 | P2: Metrics (exposition set) | T11, T12, T14, T15 | Execute | Implemented (T11, T12, T14); e2e proof in T15 |
-| OBS-38 | P2: Metrics (validation outcome) | T11, T12, T15 | Execute | Implemented (T11, T12); e2e proof in T15 |
-| OBS-39 | P2: Metrics (processing outcome + duration) | T11, T13, T15 | Execute | Implemented (T11, T13); e2e proof in T15 |
-| OBS-40 | P2: Metrics (inflight gauge) | T11, T12, T13, T15 | Execute | Implemented (T11-T13); e2e proof in T15 |
-| OBS-41 | P2: Health (not-ready on broker loss) | T14, T15 | Execute | Implemented (T14); e2e proof in T15 |
-| OBS-42 | P2: Health/Metrics (no auth, no noise) | T2, T14, T15 | Execute | Implemented (T2, T14); e2e proof in T15 |
+| OBS-31 | P1: correlationId (consume context) | T1, T6, T8, T9, T10, T15 | Execute | Implemented (T1, T6, T8, T9, T10); e2e proven (T15) |
+| OBS-32 | P1: correlationId (validation outcomes) | T5, T7, T9, T15 | Execute | Implemented (T5, T7, T9); e2e proven (T15) |
+| OBS-33 | P1: correlationId (processing outcomes) | T5, T7, T10, T15 | Execute | Implemented (T5, T7, T10); e2e proven (T15) |
+| OBS-34 | P1: correlationId (fallback) | T1, T8, T15 | Execute | Implemented (T1, T8); e2e proven (T15) |
+| OBS-35 | P1: structured logs (JSON shape) | T2, T3, T4, T15 | Execute | Implemented (T2-T4); T15 e2e runs with the logger, log content proven by T2 unit tests |
+| OBS-36 | P1: structured logs (no storage keys) | T2, T15 | Execute | Implemented (T2); T15 e2e runs with the logger, log content proven by T2 unit tests |
+| OBS-37 | P2: Metrics (exposition set) | T11, T12, T14, T15 | Execute | Implemented (T11, T12, T14); e2e proven (T15) |
+| OBS-38 | P2: Metrics (validation outcome) | T11, T12, T15 | Execute | Implemented (T11, T12); e2e proven (T15) |
+| OBS-39 | P2: Metrics (processing outcome + duration) | T11, T13, T15 | Execute | Implemented (T11, T13); e2e proven (T15) |
+| OBS-40 | P2: Metrics (inflight gauge) | T11, T12, T13, T15 | Execute | Implemented (T11-T13); e2e proven (T15) |
+| OBS-41 | P2: Health (not-ready on broker loss) | T14, T15 | Execute | Implemented (T14); e2e proven (T15) |
+| OBS-42 | P2: Health/Metrics (no auth, no noise) | T2, T14, T15 | Execute | Implemented (T2, T14); e2e proven (T15) |
 
 **ID format:** `OBS-[NUMBER]` — `fiap-x-api` owns OBS-01..15; `processing-catalog` OBS-16..30; this repo owns OBS-31..45; `notification-service` OBS-46..60; `fiap-x-platform` OBS-61..75.
 
@@ -131,6 +131,6 @@ The Worker is where RF-1 either happens or doesn't, yet today there is no metric
 
 ## Success Criteria
 
-- [ ] A job consumed with `correlationId: w-7` republishes that id on its outcome event, with matching log lines in between, provable on a real broker.
-- [ ] After the four-outcome broker test, `/metrics` shows exactly 4 outcome increments, ≥1 duration observation, and zero inflight.
-- [ ] With the broker stopped: `/health` 503, `/health/live` 200, `/metrics` 200.
+- [ ] A job consumed with `correlationId: w-7` republishes that id on its outcome event, with matching log lines in between, provable on a real broker. (Republish proven on the broker by T15; the log-line half is proven by the T2 unit tests only, not on the broker.)
+- [x] After the four-outcome broker test, `/metrics` shows exactly 4 outcome increments, ≥1 duration observation, and zero inflight.
+- [x] With the broker stopped: `/health` 503, `/health/live` 200, `/metrics` 200.

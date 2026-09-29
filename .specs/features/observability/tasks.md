@@ -412,9 +412,11 @@ T15
 
 **Done when**:
 
-- [ ] All assertions pass on the real broker
-- [ ] Gate check passes: `npm test && npm run test:e2e && npm run lint && npm run typecheck && npm run build`
-- [ ] Test count: 9 new e2e tests pass (no silent deletions)
+- [x] All assertions pass on the real broker
+- [x] Gate check passes: `npm test && npm run test:e2e && npm run lint && npm run typecheck && npm run build`
+- [x] Test count: 9 new e2e tests pass (no silent deletions): e2e 55 -> 64 passed, the 2 pre-existing S3 skips unchanged
+
+> The Worker runs as main.ts composes it, with the real outcome publisher, and outcomes are read back from the stack's outcome queues. The two consumed queues get suite-private names (`obs-e2e.*`, through `consumerOptions`' queue-name variables), so `test/broker.e2e-spec.ts` in a parallel Jest worker never takes these messages; they are deleted after the suite. `test/support/outcome-broker-url.ts` points the publishers at `RABBITMQ_TEST_URL` before the app module loads. Broker loss is real: the Worker connects through an in-test TCP relay to the broker, `/health` is 200, then the relay is cut and `/health` turns 503 while `/health/live` and `/metrics` stay 200. The readiness binding is mirrored from main.ts, which cannot be imported (it runs `bootstrap()` on load). The throwing handler is a `ProcessingQueued` without `attemptId`, rejected by the consumer. The ninth test adds `VideoRejected` and `ProcessingFailed` carrying the consumed id, so all five outcome events are proven on the broker. Not asserted at e2e: log lines carrying the id (pino writes to fd 1, out of the suite's reach). OBS-35/36 stay proven by the T2 unit tests.
 
 **Tests**: e2e
 **Gate**: full
