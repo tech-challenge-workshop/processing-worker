@@ -82,9 +82,9 @@ T15
 
 **Done when**:
 
-- [ ] Concurrent runs isolated; bounds and non-string rejections verified
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 10 new unit tests pass (no silent deletions)
+- [x] Concurrent runs isolated; bounds and non-string rejections verified
+- [x] Gate check passes: `npm test`
+- [x] Test count: 10 new unit tests pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
