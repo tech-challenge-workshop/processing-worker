@@ -1,28 +1,28 @@
 import { INestApplication } from '@nestjs/common';
-import { MicroserviceOptions } from '@nestjs/microservices';
 import { Test } from '@nestjs/testing';
 import amqp, {
   AmqpConnectionManager,
   ChannelWrapper,
 } from 'amqp-connection-manager';
 import { createServer, connect, Server, Socket } from 'node:net';
-import { combineLatest, map, Observable } from 'rxjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import './support/outcome-broker-url';
 import { AppModule } from './../src/app.module';
+import { configureApp } from './../src/configure-app';
 import { consumerOptions } from './../src/messaging/consumer-options';
 import { ProcessingQueuedDto } from './../src/messaging/dto/processing-queued.dto';
 import { VideoValidationRequestedDto } from './../src/messaging/dto/video-validation-requested.dto';
-import { RabbitmqHealthService } from './../src/messaging/rabbitmq-health.service';
+import { LOG_DESTINATION } from './../src/observability/logger.config';
 import { workerMetrics } from './../src/observability/metrics';
 import { FramePackager } from './../src/processing/frame-packager.interface';
 import { brokerSuiteMode } from './../src/testing/broker-guard';
 import { InMemoryDuplicateChecker } from './../src/validation/in-memory-duplicate-checker';
 import { VideoValidator } from './../src/validation/video-validator.interface';
 
-// OBS-31..42 on a real RabbitMQ: the Worker as main.ts composes it (both
-// consumers, the real outcome publisher, /metrics, /health) consumes from the
+// OBS-31..42 on a real RabbitMQ: the Worker as main.ts composes it
+// (configureApp: the pino logger, both consumers, readiness; plus the real
+// outcome publisher, /metrics, /health) consumes from the
 // broker and publishes to the stack's outcome queues. The two consumed queues
 // get suite-private names, so a broker suite running in a parallel Jest
 // worker never takes these messages; they are deleted afterwards. Same
@@ -79,26 +79,14 @@ const seriesValue = (
   return line === undefined ? undefined : Number(line.slice(series.length + 1));
 };
 
-/**
- * Readiness follows both consumers' broker status, exactly as main.ts binds
- * it (main.ts runs bootstrap on import, so the binding is mirrored here).
- */
-const bindReadiness = (
-  app: INestApplication,
-  statuses: Array<Observable<string>>,
-): void => {
-  const health = app.get(RabbitmqHealthService);
-  combineLatest(statuses)
-    .pipe(map((all) => all.every((status) => status === 'connected')))
-    .subscribe((connected) => health.setConnected(connected));
-};
-
 const describeBroker = mode === 'run' ? describe : describe.skip;
 
 describeBroker('Observability against a real RabbitMQ', () => {
   let connection: AmqpConnectionManager;
   let channel: ChannelWrapper;
   let app: INestApplication<App> | undefined;
+  // Every line the Worker's pino logger writes during a test, in order.
+  let logLines: string[] = [];
 
   // Accepts or rejects, completes or fails, by the request id, so one run
   // can produce all four outcomes.
@@ -131,22 +119,21 @@ describeBroker('Observability against a real RabbitMQ', () => {
       .useValue(validator)
       .overrideProvider('FRAME_PACKAGER')
       .useValue(packager)
+      .overrideProvider(LOG_DESTINATION)
+      .useValue({ write: (line: string) => logLines.push(line) })
       .compile();
-    app = moduleFixture.createNestApplication();
-    const consumers = consumerOptions({
-      RABBITMQ_URL: brokerUrl,
-      RABBITMQ_VIDEO_VALIDATION_QUEUE: VALIDATION_QUEUE,
-      RABBITMQ_PROCESSING_QUEUE: PROCESSING_QUEUE,
-    });
-    const validation = app.connectMicroservice<MicroserviceOptions>(
-      consumers.validation,
+    app = moduleFixture.createNestApplication({ bufferLogs: true });
+    configureApp(
+      app,
+      consumerOptions({
+        RABBITMQ_URL: brokerUrl,
+        RABBITMQ_VIDEO_VALIDATION_QUEUE: VALIDATION_QUEUE,
+        RABBITMQ_PROCESSING_QUEUE: PROCESSING_QUEUE,
+      }),
     );
-    const processing = app.connectMicroservice<MicroserviceOptions>(
-      consumers.processing,
-    );
-    bindReadiness(app, [validation.status, processing.status]);
     await app.startAllMicroservices();
     await app.init();
+    app.flushLogs();
   };
 
   const send = async (
@@ -214,6 +201,7 @@ describeBroker('Observability against a real RabbitMQ', () => {
   });
 
   beforeEach(async () => {
+    logLines = [];
     workerMetrics.resetMetrics();
     await purgeOutcomes();
   });

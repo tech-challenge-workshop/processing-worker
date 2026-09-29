@@ -1,5 +1,14 @@
+import type { DestinationStream } from 'pino';
 import type { Options as PinoHttpOptions } from 'pino-http';
 import { CorrelationContext } from './correlation-context';
+
+/**
+ * Where the Worker's log lines go. `null`, the default, keeps pino's own
+ * stdout destination; a test binds a stream to read the lines the Worker
+ * writes through its real logger wiring.
+ */
+export const LOG_DESTINATION = Symbol('LOG_DESTINATION');
+export type LogDestination = DestinationStream | null;
 
 const ACCESS_LOG_EXCLUDED_PATHS = ['/health', '/health/live', '/metrics'];
 
