@@ -243,9 +243,9 @@ T15
 
 **Done when**:
 
-- [ ] Unit: valid id flows into the handler context; absent/number/object inputs get a generated id and the handler still runs
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 6 new unit tests pass (no silent deletions)
+- [x] Unit: valid id flows into the handler context; absent/number/object inputs get a generated id and the handler still runs
+- [x] Gate check passes: `npm test`
+- [x] Test count: 8 new unit tests pass (planned 6; the three L-010 inputs run as separate cases)
 
 **Tests**: unit
 **Gate**: quick
