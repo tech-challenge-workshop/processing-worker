@@ -6,6 +6,7 @@ import {
   MessageRejectedError,
   settleFailedMessage,
 } from '../messaging/settle-failed-message';
+import { withMessageCorrelation } from '../messaging/with-correlation';
 import { ProcessingCompletedDto } from '../messaging/dto/processing-completed.dto';
 import { ProcessingQueuedDto } from '../messaging/dto/processing-queued.dto';
 import { ProcessingStartedDto } from '../messaging/dto/processing-started.dto';
@@ -41,35 +42,40 @@ export class ProcessingConsumer {
     @Payload() dto: ProcessingQueuedDto,
     @Ctx() ctx?: RmqContext,
   ): Promise<void> {
-    try {
-      const outcome = await this.processProcessingQueued(dto);
-      if (outcome === 'left-for-redelivery') {
-        return;
+    // The whole handling runs in the message's correlation scope (OBS-31),
+    // whatever the settlement: ack, nack, or left for redelivery on shutdown.
+    // The scope closes when the handler settles.
+    return withMessageCorrelation(dto, async () => {
+      try {
+        const outcome = await this.processProcessingQueued(dto);
+        if (outcome === 'left-for-redelivery') {
+          return;
+        }
+        if (ctx) {
+          const channel = ctx.getChannelRef() as {
+            ack: (message: unknown) => void;
+            nack: (
+              message: unknown,
+              allUpTo?: boolean,
+              requeue?: boolean,
+            ) => void;
+          };
+          channel.ack(ctx.getMessage());
+        }
+      } catch (err) {
+        if (ctx) {
+          const channel = ctx.getChannelRef() as {
+            nack: (
+              message: unknown,
+              allUpTo?: boolean,
+              requeue?: boolean,
+            ) => void;
+          };
+          await settleFailedMessage(channel, ctx.getMessage(), err);
+        }
+        throw err;
       }
-      if (ctx) {
-        const channel = ctx.getChannelRef() as {
-          ack: (message: unknown) => void;
-          nack: (
-            message: unknown,
-            allUpTo?: boolean,
-            requeue?: boolean,
-          ) => void;
-        };
-        channel.ack(ctx.getMessage());
-      }
-    } catch (err) {
-      if (ctx) {
-        const channel = ctx.getChannelRef() as {
-          nack: (
-            message: unknown,
-            allUpTo?: boolean,
-            requeue?: boolean,
-          ) => void;
-        };
-        await settleFailedMessage(channel, ctx.getMessage(), err);
-      }
-      throw err;
-    }
+    });
   }
 
   // 'left-for-redelivery': the app began shutting down while the job ran. No

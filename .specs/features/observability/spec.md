@@ -110,9 +110,9 @@ The Worker is where RF-1 either happens or doesn't, yet today there is no metric
 
 | Requirement ID | Story | Tasks | Phase | Status |
 | --- | --- | --- | --- | --- |
-| OBS-31 | P1: correlationId (consume context) | T1, T6, T8, T9, T10, T15 | Execute | In progress (T1, T6, T8, T9 done) |
+| OBS-31 | P1: correlationId (consume context) | T1, T6, T8, T9, T10, T15 | Execute | Implemented (T1, T6, T8, T9, T10); e2e proof in T15 |
 | OBS-32 | P1: correlationId (validation outcomes) | T5, T7, T9, T15 | Execute | Implemented (T5, T7, T9); e2e proof in T15 |
-| OBS-33 | P1: correlationId (processing outcomes) | T5, T7, T10, T15 | Execute | In progress (T5, T7 done) |
+| OBS-33 | P1: correlationId (processing outcomes) | T5, T7, T10, T15 | Execute | Implemented (T5, T7, T10); e2e proof in T15 |
 | OBS-34 | P1: correlationId (fallback) | T1, T8, T15 | Execute | Implemented (T1, T8); e2e proof in T15 |
 | OBS-35 | P1: structured logs (JSON shape) | T2, T3, T4, T15 | Execute | Implemented (T2-T4); e2e proof in T15 |
 | OBS-36 | P1: structured logs (no storage keys) | T2, T15 | Execute | Implemented (T2); e2e proof in T15 |

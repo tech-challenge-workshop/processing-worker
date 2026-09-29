@@ -289,9 +289,9 @@ T15
 
 **Done when**:
 
-- [ ] Unit: consumed `ProcessingQueued` with `p-3` republishes `ProcessingStarted`/`ProcessingCompleted` carrying `p-3`; shutdown-left-for-redelivery still settles with the context closed
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 4 new unit tests pass (no silent deletions)
+- [x] Unit: consumed `ProcessingQueued` with `p-3` republishes `ProcessingStarted`/`ProcessingCompleted` carrying `p-3`; shutdown-left-for-redelivery still settles with the context closed
+- [x] Gate check passes: `npm test`
+- [x] Test count: 4 new unit tests pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick

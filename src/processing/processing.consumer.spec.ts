@@ -17,6 +17,7 @@ import { frameArchiveKey } from './deterministic-frame-packager';
 import { MediaFramePackager } from './media-frame-packager';
 import { outcomeEventId } from '../messaging/outcome-event-id';
 import { retryBackoffMs } from '../messaging/settle-failed-message';
+import { correlationContext } from '../observability/correlation-context';
 import type { FramePackager } from './frame-packager.interface';
 import {
   ProcessingConsumer,
@@ -553,6 +554,99 @@ describe('ProcessingConsumer', () => {
 
       const ids = publisher.publishedEvents.map((e) => e.eventId);
       expect(new Set(ids).size).toBe(4);
+    });
+  });
+
+  describe('correlation id (OBS-31, OBS-33, OBS-34)', () => {
+    const UUID_V4_REGEX =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+    const consumerWith = (
+      packager: FramePackager,
+      shutdownSignal = new ShutdownSignal(),
+    ): ProcessingConsumer =>
+      new ProcessingConsumer(
+        duplicateChecker,
+        publisher,
+        packager,
+        shutdownSignal,
+      );
+
+    it('republishes ProcessingStarted and ProcessingCompleted with the consumed id', async () => {
+      let seenByPackager: string | undefined;
+      const packager: FramePackager = {
+        packageFrames: () => {
+          seenByPackager = correlationContext.getCorrelationId();
+          return Promise.resolve('zips/req-1.zip');
+        },
+      };
+      const { ctx, ack } = createContext();
+
+      await consumerWith(packager).handleProcessingQueued(
+        createDto({ correlationId: 'p-3' }),
+        ctx,
+      );
+
+      expect(seenByPackager).toBe('p-3');
+      expect(publisher.published.map((r) => [r.type, r.correlationId])).toEqual(
+        [
+          ['ProcessingStarted', 'p-3'],
+          ['ProcessingCompleted', 'p-3'],
+        ],
+      );
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(correlationContext.getCorrelationId()).toBeUndefined();
+    });
+
+    it('republishes ProcessingFailed with the consumed id', async () => {
+      await consumerWith({
+        packageFrames: () => Promise.reject(new Error('ffmpeg blew up')),
+      }).handleProcessingQueued(createDto({ correlationId: 'p-3' }));
+
+      expect(publisher.published.map((r) => [r.type, r.correlationId])).toEqual(
+        [
+          ['ProcessingStarted', 'p-3'],
+          ['ProcessingFailed', 'p-3'],
+        ],
+      );
+    });
+
+    it('leaves a job for redelivery on shutdown, unsettled, with the scope closed once the handler returns', async () => {
+      const shutdownSignal = new ShutdownSignal();
+      let seenAtShutdown: string | undefined;
+      const packager: FramePackager = {
+        packageFrames: () => {
+          shutdownSignal.onModuleDestroy();
+          seenAtShutdown = correlationContext.getCorrelationId();
+          return Promise.resolve('zips/req-1.zip');
+        },
+      };
+      const { ctx, ack, nack } = createContext();
+
+      await consumerWith(packager, shutdownSignal).handleProcessingQueued(
+        createDto({ correlationId: 'p-3' }),
+        ctx,
+      );
+
+      expect(seenAtShutdown).toBe('p-3');
+      expect(publisher.published.map((r) => [r.type, r.correlationId])).toEqual(
+        [['ProcessingStarted', 'p-3']],
+      );
+      expect(ack).not.toHaveBeenCalled();
+      expect(nack).not.toHaveBeenCalled();
+      expect(correlationContext.getCorrelationId()).toBeUndefined();
+    });
+
+    it('publishes both events with one generated id when the message has none, and acks it', async () => {
+      const { ctx, ack, nack } = createContext();
+
+      await consumer.handleProcessingQueued(createDto(), ctx);
+
+      const [started, completed] = publisher.published;
+      expect(started.correlationId).toMatch(UUID_V4_REGEX);
+      expect(completed.correlationId).toBe(started.correlationId);
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(nack).not.toHaveBeenCalled();
     });
   });
 });
