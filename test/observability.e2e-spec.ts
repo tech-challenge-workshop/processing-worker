@@ -28,6 +28,9 @@ import { VideoValidator } from './../src/validation/video-validator.interface';
 // worker never takes these messages; they are deleted afterwards. Same
 // RABBITMQ_TEST_URL guard as test/broker.e2e-spec.ts.
 const url = process.env.RABBITMQ_TEST_URL;
+// The Worker logs at its production level here: every line goes to the
+// suite's capture stream (LOG_DESTINATION), not to stdout.
+process.env.LOG_LEVEL = 'info';
 const mode = brokerSuiteMode(process.env);
 
 if (mode === 'fail') {
@@ -86,6 +89,8 @@ describeBroker('Observability against a real RabbitMQ', () => {
   let channel: ChannelWrapper;
   let app: INestApplication<App> | undefined;
   // Every line the Worker's pino logger writes during a test, in order.
+  // nestjs-pino builds its root logger once per process, so the capture
+  // stream reads this binding rather than holding one array.
   let logLines: string[] = [];
 
   // Accepts or rejects, completes or fails, by the request id, so one run
@@ -98,11 +103,23 @@ describeBroker('Observability against a real RabbitMQ', () => {
           : { accepted: true },
       ),
   };
+  // A `hold-` job waits in the packager until the test releases it, so the
+  // app can begin shutting down while the job is in flight.
+  let packagerEntered: () => void = () => undefined;
+  let releasePackager: () => void = () => undefined;
   const packager: FramePackager = {
-    packageFrames: (dto) =>
-      dto.processingRequestId.startsWith('fail')
+    packageFrames: (dto) => {
+      if (dto.processingRequestId.startsWith('hold')) {
+        packagerEntered();
+        return new Promise((resolve) => {
+          releasePackager = () =>
+            resolve(`zips/${dto.processingRequestId}.zip`);
+        });
+      }
+      return dto.processingRequestId.startsWith('fail')
         ? Promise.reject(new Error('ffmpeg blew up'))
-        : Promise.resolve(`zips/${dto.processingRequestId}.zip`),
+        : Promise.resolve(`zips/${dto.processingRequestId}.zip`);
+    },
   };
 
   const purgeOutcomes = async (): Promise<void> => {
@@ -456,6 +473,80 @@ describeBroker('Observability against a real RabbitMQ', () => {
         expect(response.text).toContain(
           'fiapx_http_requests_total{method="GET",route="/health/live",status="200"} 1',
         );
+      },
+      TEST_TIMEOUT_MS,
+    );
+  });
+
+  describe('logs through the Worker logger wiring (OBS-31, OBS-35, OBS-36)', () => {
+    const parsed = (): Array<Record<string, unknown>> =>
+      logLines.map((line) => JSON.parse(line) as Record<string, unknown>);
+
+    const expectEveryLineStructured = (): void => {
+      expect(logLines.length).toBeGreaterThan(0);
+      for (const line of parsed()) {
+        expect(line).toEqual(
+          expect.objectContaining({
+            timestamp: expect.any(Number) as unknown,
+            level: expect.any(Number) as unknown,
+            msg: expect.any(String) as unknown,
+            service: 'processing-worker',
+          }),
+        );
+      }
+    };
+
+    it(
+      'writes every line as JSON, and a line logged inside the handler carries the consumed id and no storage key',
+      async () => {
+        await startWorker();
+        const entered = new Promise<void>(
+          (resolve) => (packagerEntered = resolve),
+        );
+
+        await send(
+          PROCESSING_QUEUE,
+          'ProcessingQueued',
+          processingQueued({
+            processingRequestId: 'hold-1',
+            sourceStorageKey: 'sources/secret-key.mp4',
+            correlationId: 'w-7',
+          }),
+        );
+        await entered;
+        // The app shuts down while the job is in the packager; released
+        // after, the job logs its left-for-redelivery warning inside the
+        // message's scope.
+        await app!.close();
+        app = undefined;
+        releasePackager();
+        const inHandler = (): Array<Record<string, unknown>> =>
+          parsed().filter(
+            (line) =>
+              typeof line.msg === 'string' && line.msg.includes('hold-1'),
+          );
+        await eventually(
+          () => Promise.resolve(inHandler()),
+          (lines) => lines.length > 0,
+        );
+        // The unacked message went back to the queue with the connection.
+        const ready = async (): Promise<number> => {
+          const reply = (await channel.checkQueue(PROCESSING_QUEUE)) as {
+            messageCount: number;
+          };
+          return reply.messageCount;
+        };
+        await eventually(ready, (n) => n === 1);
+        await channel.purgeQueue(PROCESSING_QUEUE);
+
+        expectEveryLineStructured();
+        expect(inHandler()).toHaveLength(1);
+        expect(inHandler()[0]).toMatchObject({
+          level: 40,
+          context: 'ProcessingConsumer',
+          correlationId: 'w-7',
+        });
+        expect(logLines.join('\n')).not.toContain('secret-key');
       },
       TEST_TIMEOUT_MS,
     );
