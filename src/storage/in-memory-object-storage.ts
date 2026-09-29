@@ -29,7 +29,9 @@ export class InMemoryObjectStorage implements ObjectStorage {
   async download(key: string, destinationPath: string): Promise<void> {
     const object = this.objects.get(key);
     if (!object) {
-      throw new Error(`No object at key ${key}`);
+      // The key stays out of the message: it is logged when the consumer
+      // rethrows it, and a log line never carries a storage key (OBS-36).
+      throw new Error('The requested key has no object');
     }
     await writeFile(destinationPath, object.bytes);
   }

@@ -17,6 +17,8 @@ import { frameArchiveKey } from './deterministic-frame-packager';
 import { MediaFramePackager } from './media-frame-packager';
 import { outcomeEventId } from '../messaging/outcome-event-id';
 import { retryBackoffMs } from '../messaging/settle-failed-message';
+import { correlationContext } from '../observability/correlation-context';
+import { workerMetrics } from '../observability/metrics';
 import type { FramePackager } from './frame-packager.interface';
 import {
   ProcessingConsumer,
@@ -553,6 +555,255 @@ describe('ProcessingConsumer', () => {
 
       const ids = publisher.publishedEvents.map((e) => e.eventId);
       expect(new Set(ids).size).toBe(4);
+    });
+  });
+
+  describe('correlation id (OBS-31, OBS-33, OBS-34)', () => {
+    const UUID_V4_REGEX =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+    const consumerWith = (
+      packager: FramePackager,
+      shutdownSignal = new ShutdownSignal(),
+    ): ProcessingConsumer =>
+      new ProcessingConsumer(
+        duplicateChecker,
+        publisher,
+        packager,
+        shutdownSignal,
+      );
+
+    it('republishes ProcessingStarted and ProcessingCompleted with the consumed id', async () => {
+      let seenByPackager: string | undefined;
+      const packager: FramePackager = {
+        packageFrames: () => {
+          seenByPackager = correlationContext.getCorrelationId();
+          return Promise.resolve('zips/req-1.zip');
+        },
+      };
+      const { ctx, ack } = createContext();
+
+      await consumerWith(packager).handleProcessingQueued(
+        createDto({ correlationId: 'p-3' }),
+        ctx,
+      );
+
+      expect(seenByPackager).toBe('p-3');
+      expect(publisher.published.map((r) => [r.type, r.correlationId])).toEqual(
+        [
+          ['ProcessingStarted', 'p-3'],
+          ['ProcessingCompleted', 'p-3'],
+        ],
+      );
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(correlationContext.getCorrelationId()).toBeUndefined();
+    });
+
+    it('republishes ProcessingFailed with the consumed id', async () => {
+      await consumerWith({
+        packageFrames: () => Promise.reject(new Error('ffmpeg blew up')),
+      }).handleProcessingQueued(createDto({ correlationId: 'p-3' }));
+
+      expect(publisher.published.map((r) => [r.type, r.correlationId])).toEqual(
+        [
+          ['ProcessingStarted', 'p-3'],
+          ['ProcessingFailed', 'p-3'],
+        ],
+      );
+    });
+
+    it('leaves a job for redelivery on shutdown, unsettled, with the scope closed once the handler returns', async () => {
+      const shutdownSignal = new ShutdownSignal();
+      let seenAtShutdown: string | undefined;
+      const packager: FramePackager = {
+        packageFrames: () => {
+          shutdownSignal.onModuleDestroy();
+          seenAtShutdown = correlationContext.getCorrelationId();
+          return Promise.resolve('zips/req-1.zip');
+        },
+      };
+      const { ctx, ack, nack } = createContext();
+
+      await consumerWith(packager, shutdownSignal).handleProcessingQueued(
+        createDto({ correlationId: 'p-3' }),
+        ctx,
+      );
+
+      expect(seenAtShutdown).toBe('p-3');
+      expect(publisher.published.map((r) => [r.type, r.correlationId])).toEqual(
+        [['ProcessingStarted', 'p-3']],
+      );
+      expect(ack).not.toHaveBeenCalled();
+      expect(nack).not.toHaveBeenCalled();
+      expect(correlationContext.getCorrelationId()).toBeUndefined();
+    });
+
+    it('publishes both events with one generated id when the message has none, and acks it', async () => {
+      const { ctx, ack, nack } = createContext();
+
+      await consumer.handleProcessingQueued(createDto(), ctx);
+
+      const [started, completed] = publisher.published;
+      expect(started.correlationId).toMatch(UUID_V4_REGEX);
+      expect(completed.correlationId).toBe(started.correlationId);
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(nack).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('metrics (OBS-39, OBS-40)', () => {
+    const consumerWith = (
+      packager: FramePackager,
+      shutdownSignal = new ShutdownSignal(),
+    ): ProcessingConsumer =>
+      new ProcessingConsumer(
+        duplicateChecker,
+        publisher,
+        packager,
+        shutdownSignal,
+      );
+
+    const durationSum = (exposition: string): number => {
+      const match = /^fiapx_processing_duration_seconds_sum (\S+)$/m.exec(
+        exposition,
+      );
+      return Number(match?.[1]);
+    };
+
+    // Packages after `ms` of real time, reading the metrics while it works.
+    const slowPackager = (
+      ms: number,
+      outcome: 'resolve' | 'reject',
+      seen: { during: string },
+    ): FramePackager => ({
+      packageFrames: async () => {
+        seen.during = await workerMetrics.metrics();
+        await new Promise((resolve) => setTimeout(resolve, ms));
+        if (outcome === 'reject') {
+          throw new Error('ffmpeg blew up');
+        }
+        return 'zips/req-1.zip';
+      },
+    });
+
+    beforeEach(() => {
+      workerMetrics.resetMetrics();
+    });
+
+    it('counts a completed job once and observes its handler duration once', async () => {
+      const seen = { during: '' };
+      const { ctx } = createContext();
+
+      await consumerWith(
+        slowPackager(50, 'resolve', seen),
+      ).handleProcessingQueued(createDto(), ctx);
+
+      const exposition = await workerMetrics.metrics();
+      expect(exposition).toContain(
+        'fiapx_processing_total{outcome="completed"} 1',
+      );
+      expect(exposition).toContain(
+        'fiapx_processing_total{outcome="failed"} 0',
+      );
+      expect(exposition).toContain('fiapx_processing_duration_seconds_count 1');
+      expect(durationSum(exposition)).toBeGreaterThanOrEqual(0.045);
+      expect(durationSum(exposition)).toBeLessThan(5);
+    });
+
+    it('counts a failed job once and still observes its duration', async () => {
+      const seen = { during: '' };
+      const { ctx } = createContext();
+
+      await consumerWith(
+        slowPackager(50, 'reject', seen),
+      ).handleProcessingQueued(createDto(), ctx);
+
+      const exposition = await workerMetrics.metrics();
+      expect(exposition).toContain(
+        'fiapx_processing_total{outcome="failed"} 1',
+      );
+      expect(exposition).toContain(
+        'fiapx_processing_total{outcome="completed"} 0',
+      );
+      expect(exposition).toContain('fiapx_processing_duration_seconds_count 1');
+      expect(durationSum(exposition)).toBeGreaterThanOrEqual(0.045);
+    });
+
+    it('holds the processing gauge up while the job runs and releases it after success', async () => {
+      const seen = { during: '' };
+
+      await consumerWith(
+        slowPackager(0, 'resolve', seen),
+      ).handleProcessingQueued(createDto());
+
+      expect(seen.during).toContain(
+        'fiapx_jobs_inflight{queue="processing"} 1',
+      );
+      expect(seen.during).toContain(
+        'fiapx_jobs_inflight{queue="validation"} 0',
+      );
+      expect(await workerMetrics.metrics()).toContain(
+        'fiapx_jobs_inflight{queue="processing"} 0',
+      );
+    });
+
+    it('releases the gauge after a throw, with no outcome or duration for the retried message (L-009)', async () => {
+      const seen = { during: '' };
+      // ProcessingStarted publishes; ProcessingCompleted fails to.
+      const publish = publisher.publish.bind(publisher);
+      let calls = 0;
+      jest
+        .spyOn(publisher, 'publish')
+        .mockImplementation((type, event) =>
+          ++calls === 2 ? Promise.resolve(false) : publish(type, event),
+        );
+
+      await expect(
+        consumerWith(slowPackager(0, 'resolve', seen)).handleProcessingQueued(
+          createDto(),
+        ),
+      ).rejects.toThrow('Failed to publish ProcessingCompleted');
+
+      expect(seen.during).toContain(
+        'fiapx_jobs_inflight{queue="processing"} 1',
+      );
+      const exposition = await workerMetrics.metrics();
+      expect(exposition).toContain('fiapx_jobs_inflight{queue="processing"} 0');
+      expect(exposition).toContain(
+        'fiapx_processing_total{outcome="completed"} 0',
+      );
+      expect(exposition).toContain(
+        'fiapx_processing_total{outcome="failed"} 0',
+      );
+      expect(exposition).toContain('fiapx_processing_duration_seconds_count 0');
+    });
+
+    it('releases the gauge for a job left for redelivery on shutdown, counting no outcome', async () => {
+      const shutdownSignal = new ShutdownSignal();
+      let during = '';
+      const packager: FramePackager = {
+        packageFrames: async () => {
+          during = await workerMetrics.metrics();
+          shutdownSignal.onModuleDestroy();
+          return 'zips/req-1.zip';
+        },
+      };
+      const { ctx, ack, nack } = createContext();
+
+      await consumerWith(packager, shutdownSignal).handleProcessingQueued(
+        createDto(),
+        ctx,
+      );
+
+      expect(ack).not.toHaveBeenCalled();
+      expect(nack).not.toHaveBeenCalled();
+      expect(during).toContain('fiapx_jobs_inflight{queue="processing"} 1');
+      const exposition = await workerMetrics.metrics();
+      expect(exposition).toContain('fiapx_jobs_inflight{queue="processing"} 0');
+      expect(exposition).toContain(
+        'fiapx_processing_total{outcome="completed"} 0',
+      );
+      expect(exposition).toContain('fiapx_processing_duration_seconds_count 0');
     });
   });
 });

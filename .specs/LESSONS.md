@@ -50,6 +50,48 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: test/broker.e2e-spec.ts:24 (testing)
 - last seen: 2026-09-27T01:18:11Z
 
+### L-007 - Prove log-line content through the app's real logger wiring (shared context store and bootstrap logger), not only on a logger the test builds itself
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `logging` · harmful: 0
+- features: observability
+- evidence: OBS-35; src/observability/observability.module.ts:14 (M14); src/main.ts:14 (M15) (logging)
+- last seen: 2026-09-29T02:11:06Z
+
+### L-008 - Prove log-line content through the app's real logger wiring (shared context store and bootstrap logger), not only on a logger the test builds itself
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `logging` · harmful: 0
+- features: observability
+- evidence: M14 observability.module.ts:14; M15 main.ts:14 (logging)
+- last seen: 2026-09-29T02:11:06Z
+
+### L-009 - Key-path log redaction does not cover values interpolated into message strings; keep secrets out of error messages and assert on a real log call site
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `logging` · harmful: 0
+- features: observability
+- evidence: OBS-36; src/storage/s3-object-storage.ts:80; M16 processing.consumer.ts:144 (logging)
+- last seen: 2026-09-29T02:11:06Z
+
+### L-010 - Spec edge cases must name only metrics the design actually emits; reconcile the wording when the design drops a metric
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `metrics` · harmful: 0
+- features: observability
+- evidence: OBS-39 + Edge case 1 (consumed counter not in design) (metrics)
+- last seen: 2026-09-29T02:11:06Z
+
+### L-011 - When a spec exempts endpoints from access logging, state how paths are matched (exact, prefix, query string)
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `logging` · harmful: 0
+- features: observability
+- evidence: OBS-42; src/observability/logger.config.ts:53-56 (logging)
+- last seen: 2026-09-29T02:11:06Z
+
+### L-012 - Redact or strip identifiers that library errors carry as properties (e.g. S3 SDK Key/Resource), since logging an error object serializes every enumerable field
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `logging` · harmful: 0
+- features: observability
+- evidence: OBS-36; probe P1: RpcExceptionsHandler err.Key/err.Resource from S3 SDK error; src/observability/logger.config.ts:24-36 (logging)
+- last seen: 2026-09-29T02:34:02Z
+
+### L-013 - When tests override a production default through an injection seam, add one check that the default still reaches its real target
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `testing` · harmful: 0
+- features: observability
+- evidence: M17 src/observability/observability.module.ts:18 (default LOG_DESTINATION) (testing)
+- last seen: 2026-09-29T02:34:02Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

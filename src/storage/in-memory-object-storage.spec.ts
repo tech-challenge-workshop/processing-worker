@@ -47,12 +47,13 @@ describe('InMemoryObjectStorage', () => {
     expect(readFileSync(destination)).toEqual(content);
   });
 
-  it('rejects a download of an absent key and writes nothing', async () => {
+  it('rejects a download of an absent key, naming no key, and writes nothing', async () => {
     const destination = join(dir, 'never.mp4');
 
-    await expect(
-      storage.download('sources/missing.mp4', destination),
-    ).rejects.toThrow('No object at key sources/missing.mp4');
+    const failure = storage.download('sources/missing.mp4', destination);
+
+    await expect(failure).rejects.toThrow('The requested key has no object');
+    await expect(failure).rejects.not.toThrow('sources/missing.mp4');
     expect(() => readFileSync(destination)).toThrow();
   });
 

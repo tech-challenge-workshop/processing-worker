@@ -7,9 +7,12 @@ import {
   MessageRejectedError,
   settleFailedMessage,
 } from '../messaging/settle-failed-message';
+import { withMessageCorrelation } from '../messaging/with-correlation';
+import { workerMetrics } from '../observability/metrics';
 import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-requested.dto';
 import { VideoAcceptedDto } from '../messaging/dto/video-accepted.dto';
 import { VideoRejectedDto } from '../messaging/dto/video-rejected.dto';
+import type { ValidationOutcome as CountedOutcome } from '../observability/metrics';
 import type { VideoValidator } from './video-validator.interface';
 
 export class ValidationRejectedError extends MessageRejectedError {
@@ -36,8 +39,21 @@ export class ValidationConsumer {
     @Payload() dto: VideoValidationRequestedDto,
     @Ctx() ctx?: RmqContext,
   ): Promise<void> {
+    // The whole handling, settlement included, runs in the message's
+    // correlation scope (OBS-31): its logs and outcome events carry the id.
+    // It counts as in flight on the validation queue until it settles,
+    // whether it acks, nacks or throws (OBS-40).
+    return withMessageCorrelation(dto, () =>
+      workerMetrics.inflight('validation').track(() => this.handle(dto, ctx)),
+    );
+  }
+
+  private async handle(
+    dto: VideoValidationRequestedDto,
+    ctx?: RmqContext,
+  ): Promise<void> {
     try {
-      await this.processVideoValidationRequested(dto);
+      const outcome = await this.processVideoValidationRequested(dto);
       if (ctx) {
         const channel = ctx.getChannelRef() as {
           ack: (message: unknown) => void;
@@ -48,6 +64,12 @@ export class ValidationConsumer {
           ) => void;
         };
         channel.ack(ctx.getMessage());
+      }
+      // Counted once the outcome is published and the message settled: a
+      // duplicate publishes nothing new, and a failed publication is
+      // retried, so neither is an outcome (OBS-38).
+      if (outcome !== 'duplicate') {
+        workerMetrics.recordValidation(outcome);
       }
     } catch (err) {
       if (ctx) {
@@ -66,7 +88,7 @@ export class ValidationConsumer {
 
   private async processVideoValidationRequested(
     dto: VideoValidationRequestedDto,
-  ): Promise<void> {
+  ): Promise<CountedOutcome | 'duplicate'> {
     if (!dto.processingRequestId) {
       throw new ValidationRejectedError(
         'processingRequestId is required in VideoValidationRequested',
@@ -75,7 +97,7 @@ export class ValidationConsumer {
 
     const isDuplicate = await this.duplicateChecker.isDuplicate(dto.eventId);
     if (isDuplicate) {
-      return;
+      return 'duplicate';
     }
 
     const outcome = await this.validator.validate(dto);
@@ -112,5 +134,6 @@ export class ValidationConsumer {
     }
 
     await this.duplicateChecker.mark(dto.eventId);
+    return outcome.accepted ? 'accepted' : 'rejected';
   }
 }

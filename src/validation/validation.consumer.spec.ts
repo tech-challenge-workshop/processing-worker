@@ -10,6 +10,8 @@ import { VideoValidationRequestedDto } from '../messaging/dto/video-validation-r
 import { AcceptAllVideoValidator } from './accept-all-video-validator';
 import { outcomeEventId } from '../messaging/outcome-event-id';
 import { retryBackoffMs } from '../messaging/settle-failed-message';
+import { correlationContext } from '../observability/correlation-context';
+import { workerMetrics } from '../observability/metrics';
 import type {
   FailureCode,
   ValidationOutcome,
@@ -317,5 +319,160 @@ describe('ValidationConsumer', () => {
         expect(second).toEqual(first);
       },
     );
+  });
+
+  describe('correlation id (OBS-31, OBS-32, OBS-34)', () => {
+    const UUID_V4_REGEX =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+    const consumerWith = (validator: VideoValidator): ValidationConsumer =>
+      new ValidationConsumer(duplicateChecker, publisher, validator);
+
+    it('republishes VideoAccepted with the consumed id, set before handling and cleared after', async () => {
+      let seenByValidator: string | undefined;
+      const validator: VideoValidator = {
+        validate: () => {
+          seenByValidator = correlationContext.getCorrelationId();
+          return Promise.resolve({ accepted: true });
+        },
+      };
+      const { ctx, ack } = createContext();
+
+      await consumerWith(validator).handleVideoValidationRequested(
+        createDto({ correlationId: 'w-7' }),
+        ctx,
+      );
+
+      expect(seenByValidator).toBe('w-7');
+      expect(publisher.publishedTypes).toEqual(['VideoAccepted']);
+      expect(publisher.published[0].correlationId).toBe('w-7');
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(correlationContext.getCorrelationId()).toBeUndefined();
+    });
+
+    it('republishes VideoRejected with the consumed id', async () => {
+      await consumerWith(
+        new StubValidator({ accepted: false, failureCode: 'FORMATO_INVALIDO' }),
+      ).handleVideoValidationRequested(createDto({ correlationId: 'w-7' }));
+
+      expect(publisher.publishedTypes).toEqual(['VideoRejected']);
+      expect(publisher.published[0].correlationId).toBe('w-7');
+    });
+
+    it('publishes the outcome with a generated id when the message has none, and acks it', async () => {
+      const { ctx, ack, nack } = createContext();
+
+      await consumer.handleVideoValidationRequested(createDto(), ctx);
+
+      expect(publisher.publishedTypes).toEqual(['VideoAccepted']);
+      expect(publisher.published[0].correlationId).toMatch(UUID_V4_REGEX);
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(nack).not.toHaveBeenCalled();
+    });
+
+    it('replaces a numeric id with a generated one without failing the message (L-010)', async () => {
+      const { ctx, ack, nack } = createContext();
+
+      await consumer.handleVideoValidationRequested(
+        createDto({ correlationId: 7 as unknown as string }),
+        ctx,
+      );
+
+      expect(publisher.publishedTypes).toEqual(['VideoAccepted']);
+      expect(publisher.published[0].correlationId).toMatch(UUID_V4_REGEX);
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(nack).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('metrics (OBS-37, OBS-38, OBS-40)', () => {
+    const consumerWith = (validator: VideoValidator): ValidationConsumer =>
+      new ValidationConsumer(duplicateChecker, publisher, validator);
+
+    beforeEach(() => {
+      workerMetrics.resetMetrics();
+    });
+
+    it('counts an accepted video under "accepted" only', async () => {
+      const { ctx } = createContext();
+
+      await consumer.handleVideoValidationRequested(createDto(), ctx);
+
+      const exposition = await workerMetrics.metrics();
+      expect(exposition).toContain(
+        'fiapx_validation_total{outcome="accepted"} 1',
+      );
+      expect(exposition).toContain(
+        'fiapx_validation_total{outcome="rejected"} 0',
+      );
+    });
+
+    it('counts a rejected video under "rejected" and never "accepted" (OBS-38)', async () => {
+      const { ctx } = createContext();
+
+      await consumerWith(
+        new StubValidator({ accepted: false, failureCode: 'FORMATO_INVALIDO' }),
+      ).handleVideoValidationRequested(createDto(), ctx);
+
+      const exposition = await workerMetrics.metrics();
+      expect(exposition).toContain(
+        'fiapx_validation_total{outcome="rejected"} 1',
+      );
+      expect(exposition).toContain(
+        'fiapx_validation_total{outcome="accepted"} 0',
+      );
+    });
+
+    it('holds the validation gauge up while handling and releases it after success', async () => {
+      let during = '';
+      const validator: VideoValidator = {
+        validate: async () => {
+          during = await workerMetrics.metrics();
+          return { accepted: true };
+        },
+      };
+
+      await consumerWith(validator).handleVideoValidationRequested(createDto());
+
+      expect(during).toContain('fiapx_jobs_inflight{queue="validation"} 1');
+      expect(during).toContain('fiapx_jobs_inflight{queue="processing"} 0');
+      expect(await workerMetrics.metrics()).toContain(
+        'fiapx_jobs_inflight{queue="validation"} 0',
+      );
+    });
+
+    it('releases the gauge after a throw and counts no outcome for the retried message (L-009)', async () => {
+      let during = '';
+      const validator: VideoValidator = {
+        validate: async () => {
+          during = await workerMetrics.metrics();
+          return { accepted: true };
+        },
+      };
+      publisher.setNextResult(false);
+
+      await expect(
+        consumerWith(validator).handleVideoValidationRequested(createDto()),
+      ).rejects.toThrow('Failed to publish VideoAccepted');
+
+      expect(during).toContain('fiapx_jobs_inflight{queue="validation"} 1');
+      const exposition = await workerMetrics.metrics();
+      expect(exposition).toContain('fiapx_jobs_inflight{queue="validation"} 0');
+      expect(exposition).toContain(
+        'fiapx_validation_total{outcome="accepted"} 0',
+      );
+      expect(exposition).toContain(
+        'fiapx_validation_total{outcome="rejected"} 0',
+      );
+    });
+
+    it('counts a redelivered duplicate once, not twice', async () => {
+      await consumer.handleVideoValidationRequested(createDto());
+      await consumer.handleVideoValidationRequested(createDto());
+
+      expect(await workerMetrics.metrics()).toContain(
+        'fiapx_validation_total{outcome="accepted"} 1',
+      );
+    });
   });
 });
