@@ -30,6 +30,7 @@
     "amqp-connection-manager": "^4.1.15",
     "amqplib": "^0.10.9",
     "archiver": "8.0.0",
+    "nestjs-pino": "^5.2.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

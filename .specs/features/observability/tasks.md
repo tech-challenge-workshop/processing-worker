@@ -105,10 +105,10 @@ T15
 
 **Done when**:
 
-- [ ] Log lines single JSON with `service: 'processing-worker'` and the ALS correlation id
-- [ ] Redaction covers storage keys in nested objects (the S6 no-key rule now structural)
-- [ ] Gate check passes: `npm test`
-- [ ] Test count: 7 new unit tests pass (no silent deletions)
+- [x] Log lines single JSON with `service: 'processing-worker'` and the ALS correlation id
+- [x] Redaction covers storage keys in nested objects (the S6 no-key rule now structural)
+- [x] Gate check passes: `npm test`
+- [x] Test count: 7 new unit tests pass (no silent deletions)
 
 **Tests**: unit
 **Gate**: quick
